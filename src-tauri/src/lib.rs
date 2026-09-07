@@ -135,7 +135,7 @@ pub fn run() {
                 let h = handle.clone();
                 let s = state.clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = sync::sync_on_launch_if_stale(&s).await {
+                    if let Err(e) = sync::sync_on_launch(&s).await {
                         tracing::warn!(?e, "launch sync error");
                     }
                     let _ = h.emit("entries-updated", ());

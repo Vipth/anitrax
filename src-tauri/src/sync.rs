@@ -14,8 +14,6 @@ use crate::tracker::TrackerService;
 
 /// How long a cached media metadata row stays fresh before we'd refetch it.
 pub const META_TTL: Duration = Duration::from_secs(14 * 24 * 3600);
-/// How stale the list can get on launch before we auto-sync.
-pub const LAUNCH_SYNC_AFTER: Duration = Duration::from_secs(30 * 60);
 /// Background refresh cadence (only while the window is focused).
 pub const BACKGROUND_SYNC_EVERY: Duration = Duration::from_secs(30 * 60);
 /// Debounce before the push worker flushes dirty rows.
@@ -90,9 +88,9 @@ pub async fn full_sync(state: &AppState, service: Option<&str>) -> AppResult<Syn
 
 pub const SYNC_ON_STARTUP_KEY: &str = "sync_on_startup";
 
-/// Auto-sync on launch only if the list is stale (keeps startup at zero requests
-/// when the cache is warm). Skipped entirely when the user turns it off.
-pub async fn sync_on_launch_if_stale(state: &AppState) -> AppResult<()> {
+/// Full-sync every connected service on launch. Skipped entirely when the user
+/// turns off "Sync on startup".
+pub async fn sync_on_launch(state: &AppState) -> AppResult<()> {
     if !repo::get_bool_setting(&state.db, SYNC_ON_STARTUP_KEY, true).await? {
         return Ok(());
     }
@@ -100,18 +98,7 @@ pub async fn sync_on_launch_if_stale(state: &AppState) -> AppResult<()> {
         if auth::load_token(svc)?.is_none() {
             continue;
         }
-        let stale = match repo::last_full_sync(&state.db, svc).await? {
-            None => true,
-            Some(ts) => chrono::DateTime::parse_from_rfc3339(&ts)
-                .map(|t| {
-                    (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).to_std().unwrap_or(LAUNCH_SYNC_AFTER)
-                        >= LAUNCH_SYNC_AFTER
-                })
-                .unwrap_or(true),
-        };
-        if stale {
-            let _ = full_sync(state, Some(svc.as_str())).await?;
-        }
+        let _ = full_sync(state, Some(svc.as_str())).await?;
     }
     Ok(())
 }

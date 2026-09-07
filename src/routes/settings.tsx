@@ -64,7 +64,7 @@ function SettingsPage() {
       <Section title="Sync">
         <SettingRow
           label="Sync on startup"
-          hint="Refresh your list from AniList when the app opens (only if it's been a while). Off = launch straight from the local cache; use the Sync button to refresh."
+          hint="Pull your list from AniList every time the app opens. Off = launch straight from the local cache; use the Sync button to refresh."
         >
           <SyncOnStartupToggle />
         </SettingRow>
