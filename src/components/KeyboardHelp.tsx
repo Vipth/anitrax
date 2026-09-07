@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 import { useUi } from "@/stores/ui";
 
 interface Shortcut {
@@ -48,21 +49,13 @@ const GROUPS: {
   },
 ];
 
-function Keycap({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="inline-grid h-[22px] min-w-[22px] place-items-center rounded-[6px] border border-border-strong/50 bg-surface px-1.5 font-sans text-[11px] font-medium leading-none text-muted-foreground shadow-[inset_0_-1px_0_hsl(var(--border-strong)/0.6)]">
-      {children}
-    </kbd>
-  );
-}
-
 function Keys({ keys }: { keys: string[] }) {
   return (
     <span className="flex items-center gap-1">
       {keys.map((k, i) => (
         <React.Fragment key={k}>
           {i > 0 && <span className="text-[10px] text-muted-foreground/50">/</span>}
-          <Keycap>{k}</Keycap>
+          <Kbd>{k}</Kbd>
         </React.Fragment>
       ))}
     </span>
@@ -83,7 +76,7 @@ export function KeyboardHelp() {
             Keyboard shortcuts
           </DialogTitle>
           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            close with <Keycap>Esc</Keycap>
+            close with <Kbd>Esc</Kbd>
           </span>
         </DialogHeader>
 

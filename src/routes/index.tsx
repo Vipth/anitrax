@@ -24,7 +24,6 @@ import { usePrefs, type LibrarySort } from "@/stores/prefs";
 import { STATUS_LABEL, STATUS_ORDER, relativeTime } from "@/lib/format";
 import { filterEntries, sortEntries } from "@/lib/library";
 import { toast } from "@/stores/toast";
-import { useUi } from "@/stores/ui";
 import { errorMessage, type MediaListEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
@@ -56,7 +55,6 @@ function LibraryPage() {
     statusTab,
     setStatusTab,
   } = usePrefs();
-  const openHelp = useUi((s) => s.setHelpOpen);
   const [filter, setFilter] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [kbActive, setKbActive] = React.useState(false);
@@ -195,13 +193,7 @@ function LibraryPage() {
         <div>
           <h1 className="text-lg font-semibold">Library</h1>
           <p className="text-xs text-muted-foreground">
-            Last synced {relativeTime(lastSync)} ·{" "}
-            <button
-              onClick={() => openHelp(true)}
-              className="underline decoration-dotted hover:text-foreground"
-            >
-              press ? for shortcuts
-            </button>
+            Last synced {relativeTime(lastSync)}
           </p>
         </div>
         <div className="flex items-center gap-2">
