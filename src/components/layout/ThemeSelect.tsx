@@ -102,7 +102,13 @@ export function ThemeSelect({
         </span>
       </SelectTrigger>
 
-      <SelectContent align={variant === "compact" ? "end" : "start"}>
+      <SelectContent
+        align={variant === "compact" ? "end" : "start"}
+        // Don't send focus back to the trigger on close — a focused Select
+        // trigger swallows Arrow keys (to re-open itself), which would block the
+        // sidebar's arrow-key section nav right after picking a theme with `T`.
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         {THEMES.map((t, i) => (
           <Fragment key={t.value}>
             {i === BASE_THEMES.length && <SelectSeparator />}
