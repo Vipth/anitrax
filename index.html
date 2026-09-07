@@ -13,7 +13,7 @@
         );
         var t = (persisted.state && persisted.state.theme) || "system";
         var el = document.documentElement;
-        var custom = ["cappuccino", "cappuccino-dark", "jade"];
+        var custom = ["cappuccino", "cappuccino-dark", "jade", "nord"];
         el.classList.remove("dark", ...custom);
         if (custom.indexOf(t) !== -1) {
           el.classList.add(t);

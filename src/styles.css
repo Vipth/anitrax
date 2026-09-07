@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *));
+@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *, .nord, .nord *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -121,6 +121,31 @@
   --danger: 356 68% 64%;
 
   --ring: 154 56% 51%;
+}
+
+/* Nord — dark only. The Arctic, north-bluish palette by Arctic Ice Studio:
+ * dimmed Polar Night surfaces, Snow Storm text, the Frost cyan as primary,
+ * Aurora green/yellow/red for status. */
+.nord {
+  --background: 220 16% 20%;
+  --surface: 221 16% 25%;
+  --surface-raised: 222 16% 28%;
+  --border: 220 15% 34%;
+  --border-strong: 220 14% 42%;
+  --foreground: 218 27% 92%;
+  --muted: 220 14% 66%;
+  --muted-foreground: 219 18% 76%;
+
+  --primary: 193 43% 67%;
+  --primary-foreground: 220 28% 15%;
+  --accent: 217 24% 32%;
+  --accent-foreground: 193 43% 84%;
+
+  --success: 92 28% 65%;
+  --warning: 40 71% 73%;
+  --danger: 354 42% 56%;
+
+  --ring: 193 43% 67%;
 }
 
 @theme inline {
