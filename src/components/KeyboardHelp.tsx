@@ -44,7 +44,7 @@ const GROUPS: {
       { keys: ["e"], label: "Edit selected entry" },
       { keys: ["+"], label: "Advance one episode" },
       { keys: ["−"], label: "Back one episode" },
-      { keys: ["[", "]"], label: "Switch status tab" },
+      { keys: ["⇧←/→", "[", "]"], label: "Previous / next status tab" },
       { keys: ["r"], label: "Sync now" },
     ],
   },

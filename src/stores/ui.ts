@@ -14,6 +14,11 @@ interface UiState {
    * not the sidebar sections. Cleared on Escape or leaving the Library route. */
   gridNavEngaged: boolean;
   setGridNavEngaged: (v: boolean) => void;
+
+  /** Library filter text — kept in the store (not persisted) so it survives
+   * navigating away to Discover/Settings and back. */
+  libraryFilter: string;
+  setLibraryFilter: (v: string) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -27,4 +32,7 @@ export const useUi = create<UiState>((set) => ({
 
   gridNavEngaged: false,
   setGridNavEngaged: (gridNavEngaged) => set({ gridNavEngaged }),
+
+  libraryFilter: "",
+  setLibraryFilter: (libraryFilter) => set({ libraryFilter }),
 }));

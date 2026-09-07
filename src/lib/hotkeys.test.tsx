@@ -81,6 +81,18 @@ describe("useHotkeys", () => {
     expect(save).toHaveBeenCalledOnce();
   });
 
+  it("distinguishes shift+Arrow from a bare Arrow", () => {
+    const tab = vi.fn();
+    const grid = vi.fn();
+    render(<Harness map={{ "shift+ArrowLeft": tab, ArrowLeft: grid }} />);
+    press("ArrowLeft", { shiftKey: true });
+    expect(tab).toHaveBeenCalledOnce();
+    expect(grid).not.toHaveBeenCalled();
+    press("ArrowLeft");
+    expect(grid).toHaveBeenCalledOnce();
+    expect(tab).toHaveBeenCalledOnce();
+  });
+
   it("can be disabled", () => {
     const fn = vi.fn();
     render(<Harness map={{ j: fn }} opts={{ enabled: false }} />);

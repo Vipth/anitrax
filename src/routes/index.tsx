@@ -56,7 +56,8 @@ function LibraryPage() {
     statusTab,
     setStatusTab,
   } = usePrefs();
-  const [filter, setFilter] = React.useState("");
+  const filter = useUi((s) => s.libraryFilter);
+  const setFilter = useUi((s) => s.setLibraryFilter);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const kbActive = useUi((s) => s.gridNavEngaged);
   const setKbActive = useUi((s) => s.setGridNavEngaged);
@@ -176,6 +177,14 @@ function LibraryPage() {
       "-": () => bumpSelected(-1),
       "[": () => cycleTab(-1),
       "]": () => cycleTab(1),
+      "shift+ArrowLeft": (e) => {
+        e.preventDefault();
+        cycleTab(-1);
+      },
+      "shift+ArrowRight": (e) => {
+        e.preventDefault();
+        cycleTab(1);
+      },
       r: () => !sync.isPending && doSync(),
       Escape: () => {
         setKbActive(false);
