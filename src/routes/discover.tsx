@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Plus, Search } from "lucide-react";
+import { Check, CloudOff, Plus, Search } from "lucide-react";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Input, Skeleton } from "@/components/ui/primitives";
@@ -9,7 +9,7 @@ import { MediaPoster } from "@/components/media/MediaPoster";
 import { useAddEntry, useLibrary } from "@/lib/hooks";
 import { FORMAT_LABEL, mediaTitle, stripHtml } from "@/lib/format";
 import { toast } from "@/stores/toast";
-import { errorMessage } from "@/lib/types";
+import { errorKind, errorMessage } from "@/lib/types";
 import type { Media } from "@/lib/types";
 
 export const Route = createFileRoute("/discover")({
@@ -30,7 +30,7 @@ function DiscoverPage() {
   const debounced = useDebounced(query.trim(), 500);
   const enabled = debounced.length >= 3;
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, error } = useQuery({
     queryKey: qk.search(debounced),
     queryFn: () => api.searchAnime(debounced),
     enabled,
@@ -70,6 +70,22 @@ function DiscoverPage() {
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-lg" />
           ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center gap-2 py-16 text-center text-sm">
+          {errorKind(error) === "service_unavailable" ? (
+            <>
+              <CloudOff className="size-5 text-warning" />
+              <p className="max-w-sm text-muted-foreground">
+                Search needs AniList&apos;s API, which is temporarily down on
+                their end. Your existing library still works — try again later.
+              </p>
+            </>
+          ) : (
+            <p className="max-w-sm text-muted-foreground">
+              {errorMessage(error)}
+            </p>
+          )}
         </div>
       ) : (data?.length ?? 0) === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
