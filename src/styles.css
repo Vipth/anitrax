@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ *
+ * Design tokens
+ * ------------------------------------------------------------------ */
+:root {
+  --background: 0 0% 100%;
+  --surface: 240 20% 99%;
+  --surface-raised: 0 0% 100%;
+  --border: 240 12% 90%;
+  --border-strong: 240 10% 82%;
+  --foreground: 240 20% 12%;
+  --muted: 240 12% 46%;
+  --muted-foreground: 240 8% 38%;
+
+  --primary: 255 82% 62%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 255 85% 96%;
+  --accent-foreground: 255 60% 40%;
+
+  --success: 152 62% 42%;
+  --warning: 38 92% 50%;
+  --danger: 356 72% 56%;
+
+  --ring: 255 82% 62%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 240 18% 8%;
+  --surface: 240 16% 11%;
+  --surface-raised: 240 15% 14%;
+  --border: 240 12% 20%;
+  --border-strong: 240 10% 28%;
+  --foreground: 240 20% 96%;
+  --muted: 240 10% 62%;
+  --muted-foreground: 240 8% 70%;
+
+  --primary: 255 90% 72%;
+  --primary-foreground: 240 25% 10%;
+  --accent: 255 40% 22%;
+  --accent-foreground: 255 90% 88%;
+
+  --success: 152 55% 52%;
+  --warning: 38 92% 58%;
+  --danger: 356 78% 66%;
+
+  --ring: 255 90% 72%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-surface: hsl(var(--surface));
+  --color-surface-raised: hsl(var(--surface-raised));
+  --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border-strong));
+  --color-foreground: hsl(var(--foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-danger: hsl(var(--danger));
+  --color-ring: hsl(var(--ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.4rem);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+}
+
+/* ------------------------------------------------------------------ *
+ * Base
+ * ------------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border-strong));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  .no-drag {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
