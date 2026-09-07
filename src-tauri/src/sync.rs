@@ -88,9 +88,14 @@ pub async fn full_sync(state: &AppState, service: Option<&str>) -> AppResult<Syn
     })
 }
 
+pub const SYNC_ON_STARTUP_KEY: &str = "sync_on_startup";
+
 /// Auto-sync on launch only if the list is stale (keeps startup at zero requests
-/// when the cache is warm).
+/// when the cache is warm). Skipped entirely when the user turns it off.
 pub async fn sync_on_launch_if_stale(state: &AppState) -> AppResult<()> {
+    if !repo::get_bool_setting(&state.db, SYNC_ON_STARTUP_KEY, true).await? {
+        return Ok(());
+    }
     for svc in [ServiceKind::AniList] {
         if auth::load_token(svc)?.is_none() {
             continue;

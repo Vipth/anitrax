@@ -107,6 +107,7 @@ export interface AppSettings {
   anilistClientId: string | null;
   anilistRedirect: string;
   accounts: Account[];
+  syncOnStartup: boolean;
 }
 
 export interface SyncReport {

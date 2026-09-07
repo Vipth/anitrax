@@ -17,6 +17,9 @@ export const api = {
   setAnilistClientId: (clientId: string) =>
     invoke<void>("set_anilist_client_id", { clientId }),
 
+  setSyncOnStartup: (enabled: boolean) =>
+    invoke<void>("set_sync_on_startup", { enabled }),
+
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
 
   anilistCompleteLogin: (redirectUrl: string) =>

@@ -33,6 +33,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::set_anilist_client_id,
+            commands::set_sync_on_startup,
             commands::anilist_login_url,
             commands::anilist_complete_login,
             commands::anilist_connect_token,

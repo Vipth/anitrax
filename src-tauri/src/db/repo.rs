@@ -44,6 +44,18 @@ pub async fn set_setting(db: &Db, key: &str, value: &Value) -> AppResult<()> {
     Ok(())
 }
 
+/// Read a boolean setting, falling back to `default` when unset or malformed.
+pub async fn get_bool_setting(db: &Db, key: &str, default: bool) -> AppResult<bool> {
+    Ok(get_setting(db, key)
+        .await?
+        .and_then(|v| v.as_bool())
+        .unwrap_or(default))
+}
+
+pub async fn set_bool_setting(db: &Db, key: &str, value: bool) -> AppResult<()> {
+    set_setting(db, key, &Value::Bool(value)).await
+}
+
 // --------------------------------------------------------------------------- //
 // Accounts
 // --------------------------------------------------------------------------- //

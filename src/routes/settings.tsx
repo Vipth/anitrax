@@ -7,11 +7,12 @@ import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Button } from "@/components/ui/button";
 import { Card, Input } from "@/components/ui/primitives";
+import { Switch } from "@/components/ui/switch";
 import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 import { useSettings } from "@/lib/hooks";
 import { toast } from "@/stores/toast";
-import { errorMessage } from "@/lib/types";
+import { errorMessage, type AppSettings } from "@/lib/types";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -60,11 +61,19 @@ function SettingsPage() {
         )}
       </Section>
 
+      <Section title="Sync">
+        <SettingRow
+          label="Sync on startup"
+          hint="Refresh your list from AniList when the app opens (only if it's been a while). Off = launch straight from the local cache; use the Sync button to refresh."
+        >
+          <SyncOnStartupToggle />
+        </SettingRow>
+      </Section>
+
       <Section title="Appearance">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Theme</span>
+        <SettingRow label="Theme">
           <ThemeSelect />
-        </div>
+        </SettingRow>
       </Section>
 
       <Section title="API usage">
@@ -240,5 +249,58 @@ function Section({
       </h2>
       <Card className="p-4">{children}</Card>
     </section>
+  );
+}
+
+function SettingRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm">{label}</p>
+        {hint && (
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            {hint}
+          </p>
+        )}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function SyncOnStartupToggle() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const enabled = settings?.syncOnStartup ?? true;
+
+  const mut = useMutation({
+    mutationFn: (v: boolean) => api.setSyncOnStartup(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, syncOnStartup: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <Switch
+      checked={enabled}
+      onCheckedChange={(v) => mut.mutate(v)}
+      aria-label="Sync on startup"
+    />
   );
 }

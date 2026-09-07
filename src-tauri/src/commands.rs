@@ -18,6 +18,7 @@ pub struct AppSettings {
     pub anilist_client_id: Option<String>,
     pub anilist_redirect: String,
     pub accounts: Vec<Account>,
+    pub sync_on_startup: bool,
 }
 
 #[tauri::command]
@@ -29,7 +30,13 @@ pub async fn get_settings(state: State<'_, AppState>) -> AppResult<AppSettings> 
         anilist_client_id,
         anilist_redirect: auth::ANILIST_REDIRECT.to_string(),
         accounts: repo::list_accounts(&state.db).await?,
+        sync_on_startup: repo::get_bool_setting(&state.db, sync::SYNC_ON_STARTUP_KEY, true).await?,
     })
+}
+
+#[tauri::command]
+pub async fn set_sync_on_startup(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::SYNC_ON_STARTUP_KEY, enabled).await
 }
 
 #[tauri::command]
