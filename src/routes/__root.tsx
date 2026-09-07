@@ -3,6 +3,7 @@ import {
   createRootRoute,
   Outlet,
   useNavigate,
+  useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
@@ -29,7 +30,19 @@ function RootLayout() {
   const toggleHelp = useUi((s) => s.toggleHelp);
   const setHelpOpen = useUi((s) => s.setHelpOpen);
   const toggleThemeMenu = useUi((s) => s.toggleThemeMenu);
+  const themeMenuOpen = useUi((s) => s.themeMenuOpen);
+  const gridNavEngaged = useUi((s) => s.gridNavEngaged);
+  const router = useRouter();
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
+
+  const SECTIONS = ["/", "/discover", "/settings"];
+  const goSection = (dir: -1 | 1) => {
+    // A real menu/listbox owns the arrow keys while it's open.
+    if (document.querySelector('[role="listbox"],[role="menu"]')) return;
+    const i = SECTIONS.indexOf(router.state.location.pathname);
+    const from = i === -1 ? (dir === 1 ? -1 : 0) : i;
+    navigate({ to: SECTIONS[(from + dir + SECTIONS.length) % SECTIONS.length] });
+  };
 
   useHotkeys(
     {
@@ -58,6 +71,18 @@ function RootLayout() {
         if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/settings" });
+      },
+      // Arrows cycle the sidebar sections — unless the theme menu is open or the
+      // library grid has keyboard focus, which claim the arrows for themselves.
+      ArrowUp: (e) => {
+        if (helpOpen || themeMenuOpen || gridNavEngaged) return;
+        e.preventDefault();
+        goSection(-1);
+      },
+      ArrowDown: (e) => {
+        if (helpOpen || themeMenuOpen || gridNavEngaged) return;
+        e.preventDefault();
+        goSection(1);
       },
     },
     { allowInInput: ["Escape"] },

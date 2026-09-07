@@ -24,6 +24,7 @@ import { usePrefs, type LibrarySort } from "@/stores/prefs";
 import { STATUS_LABEL, STATUS_ORDER, relativeTime } from "@/lib/format";
 import { filterEntries, sortEntries } from "@/lib/library";
 import { toast } from "@/stores/toast";
+import { useUi } from "@/stores/ui";
 import { errorMessage, type MediaListEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
@@ -57,12 +58,16 @@ function LibraryPage() {
   } = usePrefs();
   const [filter, setFilter] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
-  const [kbActive, setKbActive] = React.useState(false);
+  const kbActive = useUi((s) => s.gridNavEngaged);
+  const setKbActive = useUi((s) => s.setGridNavEngaged);
   const [editingEntry, setEditingEntry] = React.useState<MediaListEntry | null>(
     null,
   );
   const filterRef = React.useRef<HTMLInputElement>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
+
+  // Release grid keyboard focus when leaving the Library route.
+  React.useEffect(() => () => setKbActive(false), [setKbActive]);
 
   const connected = (settings?.accounts.length ?? 0) > 0;
 
@@ -147,16 +152,19 @@ function LibraryPage() {
         filterRef.current?.focus();
         filterRef.current?.select();
       },
+      // j/k/h/l always drive the grid (and engage it).
       j: () => selectAt(selectedIndex + columns()),
-      ArrowDown: () => selectAt(selectedIndex + columns()),
       k: () => selectAt(selectedIndex - columns()),
-      ArrowUp: () => selectAt(selectedIndex - columns()),
       h: () => selectAt(selectedIndex - 1),
-      ArrowLeft: () => selectAt(selectedIndex - 1),
       l: () => selectAt(selectedIndex + 1),
-      ArrowRight: () => selectAt(selectedIndex + 1),
+      // Arrows drive the grid only once it's engaged; otherwise they belong to
+      // the sidebar section nav (handled in __root).
+      ArrowDown: () => kbActive && selectAt(selectedIndex + columns()),
+      ArrowUp: () => kbActive && selectAt(selectedIndex - columns()),
+      ArrowLeft: () => kbActive && selectAt(selectedIndex - 1),
+      ArrowRight: () => kbActive && selectAt(selectedIndex + 1),
       Enter: () => {
-        if (selectedEntry)
+        if (kbActive && selectedEntry)
           navigate({
             to: "/media/$mediaId",
             params: { mediaId: String(selectedEntry.media.id.id) },
@@ -169,8 +177,12 @@ function LibraryPage() {
       "[": () => cycleTab(-1),
       "]": () => cycleTab(1),
       r: () => !sync.isPending && doSync(),
+      Escape: () => {
+        setKbActive(false);
+        setSelectedId(null);
+      },
     },
-    { enabled: connected && !editingEntry },
+    { enabled: connected && !editingEntry, allowInInput: ["Escape"] },
   );
 
   if (!connected && !isLoading) {

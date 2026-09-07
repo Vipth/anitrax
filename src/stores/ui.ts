@@ -9,6 +9,11 @@ interface UiState {
   themeMenuOpen: boolean;
   setThemeMenuOpen: (open: boolean) => void;
   toggleThemeMenu: () => void;
+
+  /** True while the library grid has keyboard focus — arrows drive the grid,
+   * not the sidebar sections. Cleared on Escape or leaving the Library route. */
+  gridNavEngaged: boolean;
+  setGridNavEngaged: (v: boolean) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -19,4 +24,7 @@ export const useUi = create<UiState>((set) => ({
   themeMenuOpen: false,
   setThemeMenuOpen: (themeMenuOpen) => set({ themeMenuOpen }),
   toggleThemeMenu: () => set((s) => ({ themeMenuOpen: !s.themeMenuOpen })),
+
+  gridNavEngaged: false,
+  setGridNavEngaged: (gridNavEngaged) => set({ gridNavEngaged }),
 }));
