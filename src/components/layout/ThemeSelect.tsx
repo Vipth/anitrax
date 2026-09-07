@@ -1,23 +1,32 @@
+import { Fragment } from "react";
 import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { usePrefs, applyTheme, type Theme } from "@/stores/prefs";
 
-const THEMES: { value: Theme; label: string }[] = [
+/** Pinned to the top, in this order. */
+const BASE_THEMES: { value: Theme; label: string }[] = [
   { value: "system", label: "System" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+];
+
+/** Standalone palettes — sorted alphabetically, so new ones slot in on their own. */
+const PALETTE_THEMES: { value: Theme; label: string }[] = [
   { value: "cappuccino", label: "Cappuccino" },
   { value: "cappuccino-dark", label: "Cappuccino Dark" },
   { value: "jade", label: "Jade" },
   { value: "nord", label: "Nord" },
   { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
 ];
-THEMES.sort((a, b) => a.label.localeCompare(b.label));
+PALETTE_THEMES.sort((a, b) => a.label.localeCompare(b.label));
+
+const THEMES = [...BASE_THEMES, ...PALETTE_THEMES];
 
 /** [background, primary] preview colours for each theme's swatch. */
 const SWATCH: Record<Theme, [string, string]> = {
@@ -83,13 +92,16 @@ export function ThemeSelect({
       </SelectTrigger>
 
       <SelectContent align={variant === "compact" ? "end" : "start"}>
-        {THEMES.map((t) => (
-          <SelectItem key={t.value} value={t.value}>
-            <span className="flex items-center gap-2.5">
-              <Swatch theme={t.value} />
-              {t.label}
-            </span>
-          </SelectItem>
+        {THEMES.map((t, i) => (
+          <Fragment key={t.value}>
+            {i === BASE_THEMES.length && <SelectSeparator />}
+            <SelectItem value={t.value}>
+              <span className="flex items-center gap-2.5">
+                <Swatch theme={t.value} />
+                {t.label}
+              </span>
+            </SelectItem>
+          </Fragment>
         ))}
       </SelectContent>
     </Select>
