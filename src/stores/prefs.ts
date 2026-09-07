@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ListStatus } from "@/lib/types";
 
-export type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "cappuccino" | "system";
 export type LibraryLayout = "grid" | "list";
 export type LibrarySort =
   | "title"
@@ -43,12 +43,18 @@ export const usePrefs = create<PrefsState>()(
   ),
 );
 
-/** Apply the theme preference to <html>. */
+/** Apply the theme preference to <html>. Kept in sync with the pre-paint
+ * bootstrap script in index.html. */
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
+  root.classList.remove("dark", "cappuccino");
+  if (theme === "cappuccino") {
+    root.classList.add("cappuccino");
+    return;
+  }
   const dark =
     theme === "dark" ||
     (theme === "system" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
-  root.classList.toggle("dark", dark);
+  if (dark) root.classList.add("dark");
 }

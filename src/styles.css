@@ -50,6 +50,30 @@
   --ring: 255 90% 72%;
 }
 
+/* Cappuccino — a warm, cozy roast: steamed-milk grounds, espresso ink,
+ * caramel accents. Its own standalone palette (not a tint of light/dark). */
+.cappuccino {
+  --background: 30 32% 91%;
+  --surface: 30 30% 88%;
+  --surface-raised: 34 44% 96%;
+  --border: 27 24% 79%;
+  --border-strong: 25 22% 66%;
+  --foreground: 22 32% 19%;
+  --muted: 24 15% 39%;
+  --muted-foreground: 24 18% 31%;
+
+  --primary: 22 54% 41%;
+  --primary-foreground: 34 46% 96%;
+  --accent: 28 42% 84%;
+  --accent-foreground: 22 52% 29%;
+
+  --success: 130 30% 35%;
+  --warning: 34 76% 43%;
+  --danger: 8 58% 46%;
+
+  --ring: 22 54% 41%;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-surface: hsl(var(--surface));

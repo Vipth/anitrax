@@ -1,9 +1,32 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anime Tracker</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      // Mirrors applyTheme() in src/stores/prefs.ts.
+      try {
+        var persisted = JSON.parse(
+          localStorage.getItem("anime-tracker-prefs") || "{}",
+        );
+        var t = (persisted.state && persisted.state.theme) || "system";
+        var el = document.documentElement;
+        el.classList.remove("dark", "cappuccino");
+        if (t === "cappuccino") {
+          el.classList.add("cappuccino");
+        } else if (
+          t === "dark" ||
+          (t === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          el.classList.add("dark");
+        }
+      } catch (e) {
+        /* first run / storage blocked — fall back to light */
+      }
+    </script>
   </head>
 
   <body>
