@@ -94,7 +94,7 @@ Runtime switching + the pre-paint bootstrap script are the same too — just add
 `"jade"` to the theme list and treat it like any other class-based theme:
 
 ```ts
-root.classList.remove("dark", "cappuccino", "cappuccino-dark", "jade");
+root.classList.remove("dark", ...ALL_CUSTOM_THEME_CLASSES);
 if (theme === "jade") { root.classList.add("jade"); return; }
 ```
 

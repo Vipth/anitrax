@@ -83,7 +83,7 @@ bootstrap script. Only the token values above change. Add `"nord"` to the theme
 list and treat it like any other class-based theme:
 
 ```ts
-root.classList.remove("dark", "cappuccino", "cappuccino-dark", "jade", "nord");
+root.classList.remove("dark", ...ALL_CUSTOM_THEME_CLASSES);
 if (theme === "nord") { root.classList.add("nord"); return; }
 ```
 

@@ -1,5 +1,9 @@
 # Cappuccino — a warm UI theme
 
+> Not shipped in Anime Tracker (it was too easily confused with "Catppuccin").
+> Kept here as a standalone palette spec, and as the canonical reference for the
+> Tailwind v4 / v3 / plain-CSS wiring that the other theme docs point back to.
+
 A cozy coffee-house palette in a light and a dark roast. Steamed-milk grounds,
 espresso ink, caramel accents. Built as a set of **semantic design tokens** (HSL
 channel triplets) so it drops into Tailwind v4, Tailwind v3, or plain CSS without

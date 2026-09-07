@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *, .nord, .nord *, .catppuccin-mocha, .catppuccin-mocha *));
+@custom-variant dark (&:where(.dark, .dark *, .jade, .jade *, .nord, .nord *, .catppuccin-frappe, .catppuccin-frappe *, .catppuccin-macchiato, .catppuccin-macchiato *, .catppuccin-mocha, .catppuccin-mocha *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -50,52 +50,102 @@
   --ring: 255 90% 72%;
 }
 
-/* Cappuccino — a warm, cozy roast: steamed-milk grounds, espresso ink,
- * caramel accents. Its own standalone palette (not a tint of light/dark). */
-.cappuccino {
-  --background: 30 32% 91%;
-  --surface: 30 30% 88%;
-  --surface-raised: 34 44% 96%;
-  --border: 27 24% 79%;
-  --border-strong: 25 22% 66%;
-  --foreground: 22 32% 19%;
-  --muted: 24 15% 39%;
-  --muted-foreground: 24 18% 31%;
+/* ------------------------------------------------------------------ *
+ * Catppuccin (catppuccin.com) — the four flavours, all with the Red
+ * accent as --primary. danger uses Maroon and warning uses Peach so the
+ * three warm status signals stay distinct from the red primary.
+ * ------------------------------------------------------------------ */
 
-  --primary: 22 54% 41%;
-  --primary-foreground: 34 46% 96%;
-  --accent: 28 42% 84%;
-  --accent-foreground: 22 52% 29%;
+/* Latte — the light flavour. */
+.catppuccin-latte {
+  --background: 220 22% 92%; /* Mantle */
+  --surface: 220 21% 89%; /* Crust */
+  --surface-raised: 220 23% 95%; /* Base */
+  --border: 223 16% 83%; /* Surface0 */
+  --border-strong: 225 14% 77%; /* Surface1 */
+  --foreground: 234 16% 35%; /* Text */
+  --muted: 233 10% 47%; /* Subtext0 */
+  --muted-foreground: 233 13% 41%; /* Subtext1 */
 
-  --success: 130 30% 35%;
-  --warning: 34 76% 43%;
-  --danger: 8 58% 46%;
+  --primary: 347 87% 44%; /* Red */
+  --primary-foreground: 220 23% 97%;
+  --accent: 347 55% 90%;
+  --accent-foreground: 347 75% 35%;
 
-  --ring: 22 54% 41%;
+  --success: 109 58% 40%; /* Green */
+  --warning: 22 99% 52%; /* Peach */
+  --danger: 355 68% 50%; /* Maroon (darkened for the light ground) */
+
+  --ring: 347 87% 44%;
 }
 
-/* Cappuccino Dark — the same roast after hours: espresso-black grounds,
- * cream ink, a brighter caramel crema so accents still lift off the dark. */
-.cappuccino-dark {
-  --background: 22 16% 10%;
-  --surface: 24 15% 13%;
-  --surface-raised: 24 14% 16%;
-  --border: 24 12% 24%;
-  --border-strong: 24 11% 32%;
-  --foreground: 32 28% 90%;
-  --muted: 28 12% 62%;
-  --muted-foreground: 30 15% 70%;
+/* Frappé — the warmest, lightest dark flavour. */
+.catppuccin-frappe {
+  --background: 229 19% 23%; /* Base */
+  --surface: 231 19% 20%; /* Mantle */
+  --surface-raised: 230 16% 30%; /* Surface0 */
+  --border: 227 15% 37%; /* Surface1 */
+  --border-strong: 228 13% 44%; /* Surface2 */
+  --foreground: 227 70% 87%; /* Text */
+  --muted: 228 29% 73%; /* Subtext0 */
+  --muted-foreground: 227 44% 80%; /* Subtext1 */
 
-  --primary: 28 62% 62%;
-  --primary-foreground: 24 30% 12%;
-  --accent: 26 28% 24%;
-  --accent-foreground: 30 55% 82%;
+  --primary: 359 68% 71%; /* Red */
+  --primary-foreground: 229 22% 14%; /* Crust */
+  --accent: 359 24% 30%;
+  --accent-foreground: 359 60% 85%;
 
-  --success: 140 34% 56%;
-  --warning: 36 78% 62%;
-  --danger: 8 66% 64%;
+  --success: 96 44% 68%; /* Green */
+  --warning: 20 79% 70%; /* Peach */
+  --danger: 358 66% 76%; /* Maroon */
 
-  --ring: 28 62% 62%;
+  --ring: 359 68% 71%;
+}
+
+/* Macchiato — the middle dark flavour. */
+.catppuccin-macchiato {
+  --background: 232 23% 18%; /* Base */
+  --surface: 233 23% 15%; /* Mantle */
+  --surface-raised: 230 19% 26%; /* Surface0 */
+  --border: 231 16% 34%; /* Surface1 */
+  --border-strong: 230 14% 41%; /* Surface2 */
+  --foreground: 227 68% 88%; /* Text */
+  --muted: 227 27% 72%; /* Subtext0 */
+  --muted-foreground: 228 39% 80%; /* Subtext1 */
+
+  --primary: 351 74% 73%; /* Red */
+  --primary-foreground: 236 23% 12%; /* Crust */
+  --accent: 351 24% 27%;
+  --accent-foreground: 351 60% 86%;
+
+  --success: 105 48% 72%; /* Green */
+  --warning: 21 86% 73%; /* Peach */
+  --danger: 355 71% 77%; /* Maroon */
+
+  --ring: 351 74% 73%;
+}
+
+/* Mocha — the darkest, most saturated flavour. */
+.catppuccin-mocha {
+  --background: 240 21% 15%; /* Base */
+  --surface: 240 21% 12%; /* Mantle */
+  --surface-raised: 237 16% 23%; /* Surface0 */
+  --border: 234 13% 31%; /* Surface1 */
+  --border-strong: 233 12% 39%; /* Surface2 */
+  --foreground: 226 64% 88%; /* Text */
+  --muted: 228 24% 72%; /* Subtext0 */
+  --muted-foreground: 227 35% 80%; /* Subtext1 */
+
+  --primary: 343 81% 75%; /* Red */
+  --primary-foreground: 240 23% 9%; /* Crust */
+  --accent: 343 22% 24%;
+  --accent-foreground: 343 55% 86%;
+
+  --success: 115 54% 76%; /* Green */
+  --warning: 23 92% 76%; /* Peach */
+  --danger: 350 65% 77%; /* Maroon */
+
+  --ring: 343 81% 75%;
 }
 
 /* Jade — dark only. Polished jade-stone dark: near-black with a green cast,
@@ -146,32 +196,6 @@
   --danger: 354 42% 56%;
 
   --ring: 193 43% 67%;
-}
-
-/* Catppuccin Mocha — the popular pastel palette (catppuccin.com), Red accent.
- * Base/Mantle/Surface greys under lavender-blue text, the Red (#f38ba8) as
- * primary; Peach for warning and Maroon for danger so they stay distinct
- * from the red primary. */
-.catppuccin-mocha {
-  --background: 240 21% 15%; /* Base   #1e1e2e */
-  --surface: 240 21% 12%; /* Mantle #181825 */
-  --surface-raised: 237 16% 23%; /* Surface0 #313244 */
-  --border: 234 13% 31%; /* Surface1 #45475a */
-  --border-strong: 233 12% 39%; /* Surface2 #585b70 */
-  --foreground: 226 64% 88%; /* Text     #cdd6f4 */
-  --muted: 228 24% 72%; /* Subtext0 #a6adc8 */
-  --muted-foreground: 227 35% 80%; /* Subtext1 #bac2de */
-
-  --primary: 343 81% 75%; /* Red    #f38ba8 */
-  --primary-foreground: 240 23% 9%; /* Crust  #11111b */
-  --accent: 343 22% 24%;
-  --accent-foreground: 343 55% 86%;
-
-  --success: 115 54% 76%; /* Green  #a6e3a1 */
-  --warning: 23 92% 76%; /* Peach  #fab387 */
-  --danger: 350 65% 77%; /* Maroon #eba0ac */
-
-  --ring: 343 81% 75%;
 }
 
 @theme inline {

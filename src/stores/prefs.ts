@@ -5,19 +5,21 @@ import type { ListStatus } from "@/lib/types";
 export type Theme =
   | "light"
   | "dark"
-  | "cappuccino"
-  | "cappuccino-dark"
   | "jade"
   | "nord"
+  | "catppuccin-latte"
+  | "catppuccin-frappe"
+  | "catppuccin-macchiato"
   | "catppuccin-mocha"
   | "system";
 
 /** Themes that are their own standalone palette (a class on <html>). */
 export const CUSTOM_THEMES = [
-  "cappuccino",
-  "cappuccino-dark",
   "jade",
   "nord",
+  "catppuccin-latte",
+  "catppuccin-frappe",
+  "catppuccin-macchiato",
   "catppuccin-mocha",
 ] as const;
 export type LibraryLayout = "grid" | "list";

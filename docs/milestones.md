@@ -30,8 +30,8 @@ The first usable build: a polished AniList list manager with two-way sync.
 **Added along the way (not in the original plan):**
 - Graceful handling of AniList's "API temporarily disabled" outages — edits stay
   queued, no retry-hammering, an outage banner explains it
-- **Cappuccino** + **Cappuccino Dark** themes + a portable theme spec
-  (`docs/cappuccino-theme.md`)
+- Extra themes beyond light/dark/system — **Jade**, **Nord**, and the four
+  **Catppuccin** flavours — each with a portable spec under `docs/`
 - Seanime-inspired custom theme picker with per-theme preview swatches
 
 **Deviations from plan:** used a hand-rolled token-bucket in the gateway instead

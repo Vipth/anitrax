@@ -18,10 +18,11 @@ const BASE_THEMES: { value: Theme; label: string }[] = [
 
 /** Standalone palettes — sorted alphabetically, so new ones slot in on their own. */
 const PALETTE_THEMES: { value: Theme; label: string }[] = [
-  { value: "cappuccino", label: "Cappuccino" },
-  { value: "cappuccino-dark", label: "Cappuccino Dark" },
   { value: "jade", label: "Jade" },
   { value: "nord", label: "Nord" },
+  { value: "catppuccin-latte", label: "Catppuccin Latte" },
+  { value: "catppuccin-frappe", label: "Catppuccin Frappé" },
+  { value: "catppuccin-macchiato", label: "Catppuccin Macchiato" },
   { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
 ];
 PALETTE_THEMES.sort((a, b) => a.label.localeCompare(b.label));
@@ -33,10 +34,11 @@ const SWATCH: Record<Theme, [string, string]> = {
   system: ["#f4f4f6", "#17171f"],
   light: ["#ffffff", "#7c5cff"],
   dark: ["#141420", "#a78bfa"],
-  cappuccino: ["#efe8e1", "#a15a30"],
-  "cappuccino-dark": ["#1e1815", "#da9a62"],
   jade: ["#111816", "#3cc88b"],
   nord: ["#2e3440", "#88c0d0"],
+  "catppuccin-latte": ["#e6e9ef", "#d20f39"],
+  "catppuccin-frappe": ["#303446", "#e78284"],
+  "catppuccin-macchiato": ["#24273a", "#ed8796"],
   "catppuccin-mocha": ["#1e1e2e", "#f38ba8"],
 };
 
