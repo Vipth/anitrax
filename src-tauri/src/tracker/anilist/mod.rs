@@ -132,9 +132,13 @@ impl TrackerService for AniList {
         Ok(())
     }
 
-    async fn search(&self, query: &str) -> AppResult<Vec<Media>> {
+    async fn search(&self, token: Option<&str>, query: &str) -> AppResult<Vec<Media>> {
         let data = self
-            .call(queries::search_media(), json!({ "q": query, "perPage": 20 }), None)
+            .call(
+                queries::search_media(),
+                json!({ "q": query, "perPage": 20 }),
+                token,
+            )
             .await?;
         let media = data
             .get("Page")
@@ -145,13 +149,13 @@ impl TrackerService for AniList {
         Ok(media.iter().filter_map(map::media).collect())
     }
 
-    async fn media_batch(&self, ids: &[i64]) -> AppResult<Vec<Media>> {
+    async fn media_batch(&self, token: Option<&str>, ids: &[i64]) -> AppResult<Vec<Media>> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
         let mut out = Vec::with_capacity(ids.len());
         for chunk in ids.chunks(25) {
-            let data = self.call(queries::batch_media(chunk), json!({}), None).await?;
+            let data = self.call(queries::batch_media(chunk), json!({}), token).await?;
             if let Some(obj) = data.as_object() {
                 for (_alias, val) in obj {
                     if let Some(m) = map::media(val) {

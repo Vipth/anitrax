@@ -115,8 +115,11 @@ pub async fn ensure_media(state: &AppState, svc: ServiceKind, media_id: i64) -> 
         return Ok(entry.media);
     }
     // Not on the list — look in the media cache directly, else fetch.
+    let token = auth::load_token(svc)?;
     let fetched = match svc {
-        ServiceKind::AniList => state.anilist.media_batch(&[media_id]).await?,
+        ServiceKind::AniList => {
+            state.anilist.media_batch(token.as_deref(), &[media_id]).await?
+        }
         ServiceKind::Kitsu => return Err(AppError::other("Kitsu arrives in a later milestone")),
     };
     let media = fetched
@@ -213,8 +216,9 @@ pub async fn search(state: &AppState, service: Option<&str>, query: &str) -> App
     if query.trim().len() < 2 {
         return Ok(vec![]);
     }
+    let token = auth::load_token(svc)?;
     let results = match svc {
-        ServiceKind::AniList => state.anilist.search(query).await?,
+        ServiceKind::AniList => state.anilist.search(token.as_deref(), query).await?,
         ServiceKind::Kitsu => return Err(AppError::other("Kitsu arrives in a later milestone")),
     };
     repo::upsert_media_bulk(&state.db, &results).await?;

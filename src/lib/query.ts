@@ -27,6 +27,11 @@ export const queryClient = new QueryClient({
   },
 });
 
+// Handy for poking at cache state from the devtools console.
+if (import.meta.env.DEV) {
+  (window as unknown as { __qc?: QueryClient }).__qc = queryClient;
+}
+
 export const qk = {
   settings: ["settings"] as const,
   accounts: ["accounts"] as const,

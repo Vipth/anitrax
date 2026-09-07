@@ -2,6 +2,7 @@ import * as React from "react";
 import { Globe, Keyboard, Library } from "lucide-react";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -81,7 +82,7 @@ export function KeyboardHelp() {
           </span>
         </DialogHeader>
 
-        <div className="grid gap-3 p-4 sm:grid-cols-2">
+        <DialogBody className="grid gap-3 space-y-0 p-4 sm:grid-cols-2">
           {GROUPS.map((group) => (
             <div
               key={group.title}
@@ -109,7 +110,7 @@ export function KeyboardHelp() {
               </dl>
             </div>
           ))}
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

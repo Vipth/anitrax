@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { ProgressControl } from "@/components/media/ProgressControl";
-import { EditEntrySheet } from "@/components/media/EditEntrySheet";
+import { EditEntryDialog } from "@/components/media/EditEntryDialog";
 import { useAddEntry, useLibrary } from "@/lib/hooks";
 import {
   FORMAT_LABEL,
@@ -192,7 +192,7 @@ function MediaDetailPage() {
       </div>
 
       {entry && (
-        <EditEntrySheet entry={entry} open={editing} onOpenChange={setEditing} />
+        <EditEntryDialog entry={entry} open={editing} onOpenChange={setEditing} />
       )}
     </div>
   );

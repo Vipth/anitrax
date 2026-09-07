@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Input, Segmented, Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaListRow } from "@/components/media/MediaCard";
-import { EditEntrySheet } from "@/components/media/EditEntrySheet";
+import { EditEntryDialog } from "@/components/media/EditEntryDialog";
 import {
   useEditEntry,
   useLibrary,
@@ -337,7 +337,7 @@ function LibraryPage() {
       )}
 
       {editingEntry && (
-        <EditEntrySheet
+        <EditEntryDialog
           entry={editingEntry}
           open={!!editingEntry}
           onOpenChange={(o) => !o && setEditingEntry(null)}

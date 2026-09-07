@@ -26,9 +26,12 @@ pub trait TrackerService: Send + Sync {
     /// Remove an entry from the list.
     async fn delete_entry(&self, token: &str, remote_id: i64) -> AppResult<()>;
 
-    /// Title search for the discover screen (unauthenticated).
-    async fn search(&self, query: &str) -> AppResult<Vec<Media>>;
+    /// Title search for the discover screen. `token` is optional — public data
+    /// needs no auth, but AniList sometimes restricts the API to authenticated
+    /// requests during incidents, so we pass it when we have one.
+    async fn search(&self, token: Option<&str>, query: &str) -> AppResult<Vec<Media>>;
 
-    /// Fetch many media objects by id in batched requests (unauthenticated).
-    async fn media_batch(&self, ids: &[i64]) -> AppResult<Vec<Media>>;
+    /// Fetch many media objects by id in batched requests. `token` optional,
+    /// same reasoning as `search`.
+    async fn media_batch(&self, token: Option<&str>, ids: &[i64]) -> AppResult<Vec<Media>>;
 }

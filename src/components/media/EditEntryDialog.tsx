@@ -1,12 +1,12 @@
 import * as React from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetBody,
-  SheetFooter,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/primitives";
 import { MediaPoster } from "./MediaPoster";
@@ -14,7 +14,7 @@ import type { EntryPatch, ListStatus, MediaListEntry } from "@/lib/types";
 import { STATUS_LABEL, STATUS_ORDER, mediaTitle } from "@/lib/format";
 import { useEditEntry, useRemoveEntry } from "@/lib/hooks";
 
-export function EditEntrySheet({
+export function EditEntryDialog({
   entry,
   open,
   onOpenChange,
@@ -64,12 +64,15 @@ export function EditEntrySheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle className="pr-8">{mediaTitle(entry.media)}</SheetTitle>
-        </SheetHeader>
-        <SheetBody>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="pr-8 leading-snug">
+            {mediaTitle(entry.media)}
+          </DialogTitle>
+        </DialogHeader>
+
+        <DialogBody>
           <div className="flex gap-4">
             <MediaPoster
               media={entry.media}
@@ -108,7 +111,9 @@ export function EditEntrySheet({
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label={`Progress${entry.media.episodes ? ` / ${entry.media.episodes}` : ""}`}>
+            <Field
+              label={`Progress${entry.media.episodes ? ` / ${entry.media.episodes}` : ""}`}
+            >
               <Input
                 type="number"
                 min={0}
@@ -148,21 +153,23 @@ export function EditEntrySheet({
 
           <button
             onClick={del}
-            className="text-xs font-medium text-danger hover:underline"
+            disabled={remove.isPending}
+            className="text-xs font-medium text-danger hover:underline disabled:opacity-50"
           >
             Remove from list
           </button>
-        </SheetBody>
-        <SheetFooter>
+        </DialogBody>
+
+        <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={save} disabled={edit.isPending}>
             {edit.isPending ? "Saving…" : "Save"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
