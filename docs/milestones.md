@@ -39,13 +39,19 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M2 — Polish & offline
+## ✅ M2 — Polish & offline  *(done)*
 
-- Skeleton loaders, empty states, error toasts everywhere they're missing
-- Keyboard shortcuts: `j`/`k` navigate, `+` bump episode, `/` focus filter
-- Verify the app is fully readable offline; edits queue as `dirty` and flush on reconnect
-- Next-episode countdowns from AniList `airingSchedule` (partly in already)
-- Wire `META_TTL` into `ensure_media` so stale metadata refetches on its own
+- ✅ Skeleton loaders, empty states, error toasts everywhere they're missing
+- ✅ Keyboard shortcuts: `j`/`k` navigate, `+` bump episode, `/` focus filter
+  (plus arrow grid-nav, `1/2/3` + `↑↓` sections, `t` theme picker, `?` help)
+- ✅ Offline verified end-to-end — library reads straight from SQLite (zero
+  network); an edit made while the endpoint was unreachable stayed `dirty=1`
+  with no data loss, the push worker retried on its 90s cadence, and on
+  reconnect the row flushed clean with progress preserved through the next
+  full sync
+- ✅ Next-episode countdowns from AniList `airingSchedule`
+- ✅ `META_TTL` (14d) wired into `ensure_media` — stale metadata refetches on
+  its own, falling back to the stale copy if the network is down
 
 ---
 
