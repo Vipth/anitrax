@@ -26,7 +26,8 @@ const GROUPS: {
     items: [
       { keys: ["1"], label: "Go to Library" },
       { keys: ["2"], label: "Go to Discover" },
-      { keys: ["3"], label: "Go to Settings" },
+      { keys: ["3"], label: "Go to Local files" },
+      { keys: ["4"], label: "Go to Settings" },
       { keys: ["↑", "↓"], label: "Previous / next section" },
       { keys: ["T"], label: "Theme picker (↑↓ then ⏎)" },
       { keys: ["?"], label: "Toggle this dialog" },

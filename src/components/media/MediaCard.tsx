@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pencil, Star, Tv } from "lucide-react";
+import { HardDrive, Pencil, Star, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaListEntry } from "@/lib/types";
 import { FORMAT_LABEL, countdown, mediaTitle, scoreToTen } from "@/lib/format";
@@ -9,7 +9,44 @@ import { MediaPoster } from "./MediaPoster";
 interface CardProps {
   entry: MediaListEntry;
   selected?: boolean;
+  owned?: number[];
   onEdit: (entry: MediaListEntry) => void;
+}
+
+/** Small "N episodes on disk" pill; tinted when the next unwatched one is ready. */
+export function OwnedBadge({
+  entry,
+  owned,
+  className,
+}: {
+  entry: MediaListEntry;
+  owned?: number[];
+  className?: string;
+}) {
+  if (!owned || owned.length === 0) return null;
+  const total = entry.media.episodes;
+  const nextReady =
+    owned.includes(entry.progress + 1) &&
+    (total == null || entry.progress < total);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+        nextReady
+          ? "bg-primary/15 text-primary"
+          : "bg-border/50 text-muted-foreground",
+        className,
+      )}
+      title={
+        nextReady
+          ? `Episode ${entry.progress + 1} is on disk`
+          : `${owned.length} episode${owned.length === 1 ? "" : "s"} on disk`
+      }
+    >
+      <HardDrive className="size-3" />
+      {owned.length}
+    </span>
+  );
 }
 
 function ProgressBar({ entry }: { entry: MediaListEntry }) {
@@ -39,7 +76,7 @@ function ProgressBar({ entry }: { entry: MediaListEntry }) {
   );
 }
 
-export function MediaCard({ entry, selected, onEdit }: CardProps) {
+export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
   const ten = scoreToTen(entry.scoreRaw);
 
   return (
@@ -105,20 +142,25 @@ export function MediaCard({ entry, selected, onEdit }: CardProps) {
           {mediaTitle(entry.media)}
         </Link>
         <ProgressBar entry={entry} />
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Tv className="size-3" />
-            {FORMAT_LABEL[entry.media.format]}
-            {entry.media.seasonYear ? ` · ${entry.media.seasonYear}` : ""}
+        <div className="flex items-center justify-between gap-1">
+          <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+            <Tv className="size-3 shrink-0" />
+            <span className="truncate">
+              {FORMAT_LABEL[entry.media.format]}
+              {entry.media.seasonYear ? ` · ${entry.media.seasonYear}` : ""}
+            </span>
           </span>
-          <ProgressControl entry={entry} compact />
+          <div className="flex shrink-0 items-center gap-1">
+            <OwnedBadge entry={entry} owned={owned} />
+            <ProgressControl entry={entry} compact />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export function MediaListRow({ entry, selected, onEdit }: CardProps) {
+export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
   const ten = scoreToTen(entry.scoreRaw);
   const total = entry.media.episodes ?? 0;
   const pct = total > 0 ? Math.min(100, (entry.progress / total) * 100) : 0;
@@ -165,6 +207,7 @@ export function MediaListRow({ entry, selected, onEdit }: CardProps) {
         </div>
       </div>
 
+      <OwnedBadge entry={entry} owned={owned} />
       {entry.scoreRaw > 0 && (
         <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground">
           <Star className="size-3 fill-warning text-warning" />

@@ -23,6 +23,7 @@ import {
   useEditEntry,
   useLibrary,
   useLastSync,
+  useOwnedMedia,
   useSettings,
   useSyncNow,
 } from "@/lib/hooks";
@@ -49,6 +50,7 @@ const SORTS: { value: LibrarySort; label: string }[] = [
 function LibraryPage() {
   const { data: settings } = useSettings();
   const { data: entries, isLoading } = useLibrary();
+  const { data: owned } = useOwnedMedia();
   const { data: lastSync } = useLastSync();
   const sync = useSyncNow();
   const edit = useEditEntry();
@@ -332,6 +334,7 @@ function LibraryPage() {
             <MediaCard
               key={e.media.id.id}
               entry={e}
+              owned={owned?.get(e.media.id.id)}
               selected={kbActive && e.media.id.id === selectedId}
               onEdit={setEditingEntry}
             />
@@ -343,6 +346,7 @@ function LibraryPage() {
             <MediaListRow
               key={e.media.id.id}
               entry={e}
+              owned={owned?.get(e.media.id.id)}
               selected={kbActive && e.media.id.id === selectedId}
               onEdit={setEditingEntry}
             />

@@ -116,6 +116,49 @@ export interface SyncReport {
   finishedAt: string;
 }
 
+export interface LibraryFolder {
+  id: number;
+  path: string;
+  enabled: boolean;
+  addedAt: string;
+  scannedAt: string | null;
+  fileCount: number;
+}
+
+export interface LibraryFile {
+  id: number;
+  folderId: number;
+  path: string;
+  fileName: string;
+  sizeBytes: number | null;
+  modifiedAt: string | null;
+  parsedTitle: string | null;
+  parsedEpisode: number | null;
+  parsedSeason: number | null;
+  resolution: string | null;
+  releaseGroup: string | null;
+  service: string | null;
+  mediaId: number | null;
+  matchKind: "auto" | "manual" | null;
+  matchScore: number | null;
+  scannedAt: string;
+  mediaTitle: MediaTitle | null;
+}
+
+export interface OwnedMedia {
+  mediaId: number;
+  episodes: number[];
+}
+
+export interface ScanReport {
+  folders: number;
+  filesSeen: number;
+  filesRemoved: number;
+  autoMatched: number;
+  unmatched: number;
+  finishedAt: string;
+}
+
 export interface BudgetSnapshot {
   usedLastMinute: number;
   selfLimit: number;

@@ -111,6 +111,48 @@ export function useAddEntry() {
   });
 }
 
+export function useLibraryFolders() {
+  return useQuery({
+    queryKey: qk.libraryFolders,
+    queryFn: () => api.libraryFolders(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useLibraryFiles() {
+  return useQuery({
+    queryKey: qk.libraryFiles,
+    queryFn: () => api.libraryFiles(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useOwnedMedia() {
+  return useQuery({
+    queryKey: qk.libraryOwned,
+    queryFn: () => api.libraryOwned(),
+    staleTime: 5 * 60_000,
+    // Map from media id -> sorted episode list for O(1) lookups in cards.
+    select: (rows) => {
+      const m = new Map<number, number[]>();
+      for (const r of rows) m.set(r.mediaId, r.episodes);
+      return m;
+    },
+  });
+}
+
+export function useScanLibrary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.scanLibrary(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.libraryFiles });
+      qc.invalidateQueries({ queryKey: qk.libraryFolders });
+      qc.invalidateQueries({ queryKey: qk.libraryOwned });
+    },
+  });
+}
+
 /** Re-fetch library/accounts when the backend emits change events. */
 export function useBackendEvents() {
   const qc = useQueryClient();
@@ -123,6 +165,11 @@ export function useBackendEvents() {
         qc.invalidateQueries({ queryKey: qk.settings });
         qc.invalidateQueries({ queryKey: qk.accounts });
         qc.invalidateQueries({ queryKey: qk.library() });
+      }),
+      listen("library-updated", () => {
+        qc.invalidateQueries({ queryKey: qk.libraryFiles });
+        qc.invalidateQueries({ queryKey: qk.libraryFolders });
+        qc.invalidateQueries({ queryKey: qk.libraryOwned });
       }),
     ];
     return () => {

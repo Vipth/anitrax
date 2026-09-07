@@ -4,8 +4,12 @@ import type {
   AppSettings,
   BudgetSnapshot,
   EntryPatch,
+  LibraryFile,
+  LibraryFolder,
   Media,
   MediaListEntry,
+  OwnedMedia,
+  ScanReport,
   ServiceKind,
   SyncReport,
 } from "./types";
@@ -55,4 +59,28 @@ export const api = {
 
   lastSync: (service?: ServiceKind) =>
     invoke<string | null>("last_sync", { service }),
+
+  // Local library (M3)
+  libraryFolders: () => invoke<LibraryFolder[]>("library_folders"),
+
+  addLibraryFolder: (path: string) =>
+    invoke<LibraryFolder>("add_library_folder", { path }),
+
+  removeLibraryFolder: (id: number) =>
+    invoke<void>("remove_library_folder", { id }),
+
+  setLibraryFolderEnabled: (id: number, enabled: boolean) =>
+    invoke<void>("set_library_folder_enabled", { id, enabled }),
+
+  scanLibrary: () => invoke<ScanReport>("scan_library"),
+
+  libraryFiles: () => invoke<LibraryFile[]>("library_files"),
+
+  libraryOwned: () => invoke<OwnedMedia[]>("library_owned"),
+
+  linkLibraryFile: (fileId: number, mediaId: number, service?: ServiceKind) =>
+    invoke<void>("link_library_file", { fileId, mediaId, service }),
+
+  unlinkLibraryFile: (fileId: number) =>
+    invoke<void>("unlink_library_file", { fileId }),
 };

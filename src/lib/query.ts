@@ -40,4 +40,7 @@ export const qk = {
   search: (q: string) => ["search", q] as const,
   budget: ["budget"] as const,
   lastSync: (service?: string) => ["lastSync", service ?? "anilist"] as const,
+  libraryFolders: ["libraryFolders"] as const,
+  libraryFiles: ["libraryFiles"] as const,
+  libraryOwned: ["libraryOwned"] as const,
 };

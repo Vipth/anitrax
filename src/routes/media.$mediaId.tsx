@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, Plus, Star } from "lucide-react";
+import { ArrowLeft, ExternalLink, HardDrive, Plus, Star } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
@@ -10,11 +10,12 @@ import { Button } from "@/components/ui/button";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { ProgressControl } from "@/components/media/ProgressControl";
 import { EditEntryDialog } from "@/components/media/EditEntryDialog";
-import { useAddEntry, useLibrary } from "@/lib/hooks";
+import { useAddEntry, useLibrary, useOwnedMedia } from "@/lib/hooks";
 import {
   FORMAT_LABEL,
   STATUS_LABEL,
   countdown,
+  episodeRanges,
   mediaTitle,
   scoreToTen,
   stripHtml,
@@ -36,7 +37,9 @@ function MediaDetailPage() {
     queryFn: () => api.getMedia(id),
   });
   const { data: library } = useLibrary();
+  const { data: owned } = useOwnedMedia();
   const entry = library?.find((e) => e.media.id.id === id);
+  const ownedEpisodes = owned?.get(id) ?? [];
   const add = useAddEntry();
 
   if (isLoading) {
@@ -176,6 +179,17 @@ function MediaDetailPage() {
               <p className="mt-3 text-xs font-medium text-warning">
                 Episode {media.nextAiring.episode} airs in{" "}
                 {countdown(media.nextAiring.airingAt)}
+              </p>
+            )}
+
+            {ownedEpisodes.length > 0 && (
+              <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <HardDrive className="size-3.5" />
+                {ownedEpisodes.length} episode
+                {ownedEpisodes.length === 1 ? "" : "s"} on disk
+                <span className="text-muted-foreground/60">
+                  ({episodeRanges(ownedEpisodes)})
+                </span>
               </p>
             )}
           </div>

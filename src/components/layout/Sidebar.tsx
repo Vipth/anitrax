@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Compass,
+  HardDrive,
   Keyboard,
   Library,
   Settings as SettingsIcon,
@@ -14,6 +15,7 @@ import { useUi } from "@/stores/ui";
 const NAV = [
   { to: "/", label: "Library", icon: Library, exact: true },
   { to: "/discover", label: "Discover", icon: Compass, exact: false },
+  { to: "/library-local", label: "Local files", icon: HardDrive, exact: false },
   { to: "/settings", label: "Settings", icon: SettingsIcon, exact: false },
 ] as const;
 

@@ -1,8 +1,15 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, LogOut } from "lucide-react";
+import {
+  ExternalLink,
+  FolderPlus,
+  LogOut,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Button } from "@/components/ui/button";
@@ -10,7 +17,8 @@ import { Card, Input } from "@/components/ui/primitives";
 import { Switch } from "@/components/ui/switch";
 import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
-import { useSettings } from "@/lib/hooks";
+import { useLibraryFolders, useScanLibrary, useSettings } from "@/lib/hooks";
+import { relativeTime } from "@/lib/format";
 import { toast } from "@/stores/toast";
 import { errorMessage, type AppSettings } from "@/lib/types";
 
@@ -68,6 +76,10 @@ function SettingsPage() {
         >
           <SyncOnStartupToggle />
         </SettingRow>
+      </Section>
+
+      <Section title="Watched folders">
+        <WatchedFolders />
       </Section>
 
       <Section title="Appearance">
@@ -272,6 +284,131 @@ function SettingRow({
         )}
       </div>
       <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function WatchedFolders() {
+  const { data: folders, isLoading } = useLibraryFolders();
+  const qc = useQueryClient();
+  const scan = useScanLibrary();
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: qk.libraryFolders });
+    qc.invalidateQueries({ queryKey: qk.libraryFiles });
+    qc.invalidateQueries({ queryKey: qk.libraryOwned });
+  };
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const picked = await open({ directory: true, multiple: false });
+      if (typeof picked !== "string") return null;
+      return api.addLibraryFolder(picked);
+    },
+    onSuccess: (f) => {
+      if (!f) return;
+      invalidate();
+      toast.success("Folder added", `Scanning ${f.path}`);
+    },
+    onError: (e) => toast.error("Couldn't add folder", errorMessage(e)),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: number) => api.removeLibraryFolder(id),
+    onSuccess: invalidate,
+    onError: (e) => toast.error("Couldn't remove folder", errorMessage(e)),
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      api.setLibraryFolderEnabled(id, enabled),
+    onSuccess: invalidate,
+    onError: (e) => toast.error("Couldn't update folder", errorMessage(e)),
+  });
+
+  const runScan = () =>
+    scan.mutate(undefined, {
+      onSuccess: (r) =>
+        toast.success(
+          "Scan complete",
+          `${r.filesSeen} files · ${r.autoMatched} matched · ${r.unmatched} to review`,
+        ),
+      onError: (e) => toast.error("Scan failed", errorMessage(e)),
+    });
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        AniTrax scans these folders for episode files and matches them to your
+        list — entirely offline. Matching uses titles already in your cache, so a
+        show you&apos;ve never synced or searched won&apos;t match until you link
+        it by hand.
+      </p>
+
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : folders && folders.length > 0 ? (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {folders.map((f) => (
+            <li
+              key={f.id}
+              className="flex items-center gap-3 px-3 py-2 text-sm"
+            >
+              <Switch
+                checked={f.enabled}
+                onCheckedChange={(enabled) =>
+                  toggle.mutate({ id: f.id, enabled })
+                }
+                aria-label={`Watch ${f.path}`}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate" title={f.path}>
+                  {f.path}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {f.fileCount} file{f.fileCount === 1 ? "" : "s"}
+                  {f.scannedAt
+                    ? ` · scanned ${relativeTime(f.scannedAt)}`
+                    : " · not scanned yet"}
+                </p>
+              </div>
+              <button
+                onClick={() => remove.mutate(f.id)}
+                className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+                aria-label="Remove folder"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+          No folders yet. Add the folder where your episodes live.
+        </p>
+      )}
+
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => add.mutate()}
+          disabled={add.isPending}
+        >
+          <FolderPlus className="size-3.5" /> Add folder
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={runScan}
+          disabled={scan.isPending || !folders?.length}
+        >
+          <RefreshCw
+            className={scan.isPending ? "size-3.5 animate-spin" : "size-3.5"}
+          />
+          Rescan now
+        </Button>
+      </div>
     </div>
   );
 }

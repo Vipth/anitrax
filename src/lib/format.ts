@@ -88,6 +88,25 @@ export function countdown(iso: string): string {
   return `${m}m`;
 }
 
+/** Collapse a sorted list of episode numbers into `"1–5, 8, 10–12"`. */
+export function episodeRanges(sorted: number[]): string {
+  if (sorted.length === 0) return "none";
+  const parts: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i <= sorted.length; i++) {
+    const n = sorted[i];
+    if (n === prev + 1) {
+      prev = n;
+      continue;
+    }
+    parts.push(start === prev ? `${start}` : `${start}–${prev}`);
+    start = n;
+    prev = n;
+  }
+  return parts.join(", ");
+}
+
 export function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
   return html

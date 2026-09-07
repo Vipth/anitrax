@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as LibraryLocalRouteImport } from './routes/library-local'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MediaMediaIdRouteImport } from './routes/media.$mediaId'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const DiscoverRoute = DiscoverRouteImport.update({
   id: '/discover',
   path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryLocalRoute = LibraryLocalRouteImport.update({
+  id: '/library-local',
+  path: '/library-local',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -38,12 +44,14 @@ const MediaMediaIdRoute = MediaMediaIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/library-local': typeof LibraryLocalRoute
   '/settings': typeof SettingsRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/library-local': typeof LibraryLocalRoute
   '/settings': typeof SettingsRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
 }
@@ -51,20 +59,29 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/library-local': typeof LibraryLocalRoute
   '/settings': typeof SettingsRoute
   '/media/$mediaId': typeof MediaMediaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/discover' | '/settings' | '/media/$mediaId'
+  fullPaths:
+    '/' | '/discover' | '/library-local' | '/settings' | '/media/$mediaId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/discover' | '/settings' | '/media/$mediaId'
-  id: '__root__' | '/' | '/discover' | '/settings' | '/media/$mediaId'
+  to: '/' | '/discover' | '/library-local' | '/settings' | '/media/$mediaId'
+  id:
+    | '__root__'
+    | '/'
+    | '/discover'
+    | '/library-local'
+    | '/settings'
+    | '/media/$mediaId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiscoverRoute: typeof DiscoverRoute
+  LibraryLocalRoute: typeof LibraryLocalRoute
   SettingsRoute: typeof SettingsRoute
   MediaMediaIdRoute: typeof MediaMediaIdRoute
 }
@@ -83,6 +100,13 @@ declare module '@tanstack/react-router' {
       path: '/discover'
       fullPath: '/discover'
       preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library-local': {
+      id: '/library-local'
+      path: '/library-local'
+      fullPath: '/library-local'
+      preLoaderRoute: typeof LibraryLocalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -105,6 +129,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoverRoute: DiscoverRoute,
+  LibraryLocalRoute: LibraryLocalRoute,
   SettingsRoute: SettingsRoute,
   MediaMediaIdRoute: MediaMediaIdRoute,
 }
