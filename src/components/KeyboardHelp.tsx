@@ -42,7 +42,7 @@ const GROUPS: {
       { keys: ["h", "l"], label: "Move left / right" },
       { keys: ["↑↓←→"], label: "Move (once the grid has focus)" },
       { keys: ["Enter"], label: "Open selected title" },
-      { keys: ["e"], label: "Edit selected entry" },
+      { keys: ["e"], label: "Edit entry (arrows pick status)" },
       { keys: ["+"], label: "Advance one episode" },
       { keys: ["−"], label: "Back one episode" },
       { keys: ["⇧←/→", "[", "]"], label: "Previous / next status tab" },

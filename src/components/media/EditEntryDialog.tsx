@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as RadioGroup from "@radix-ui/react-radio-group";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/primitives";
+import { cn } from "@/lib/utils";
 import { MediaPoster } from "./MediaPoster";
 import type { EntryPatch, ListStatus, MediaListEntry } from "@/lib/types";
 import { STATUS_LABEL, STATUS_ORDER, mediaTitle } from "@/lib/format";
@@ -33,6 +35,7 @@ export function EditEntryDialog({
   );
   const [repeat, setRepeat] = React.useState(String(entry.repeat));
   const [notes, setNotes] = React.useState(entry.notes ?? "");
+  const statusGroupRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (open) {
@@ -65,7 +68,16 @@ export function EditEntryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onOpenAutoFocus={(e) => {
+          // Land on the current status so arrow keys work immediately.
+          e.preventDefault();
+          statusGroupRef.current
+            ?.querySelector<HTMLElement>('[role="radio"][data-state="checked"]')
+            ?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="pr-8 leading-snug">
             {mediaTitle(entry.media)}
@@ -92,22 +104,28 @@ export function EditEntryDialog({
           </div>
 
           <Field label="Status">
-            <div className="grid grid-cols-3 gap-1.5">
+            <RadioGroup.Root
+              ref={statusGroupRef}
+              value={status}
+              onValueChange={(v) => setStatus(v as ListStatus)}
+              className="grid grid-cols-3 gap-1.5"
+              aria-label="Status"
+            >
               {STATUS_ORDER.map((s) => (
-                <button
+                <RadioGroup.Item
                   key={s}
-                  onClick={() => setStatus(s)}
-                  className={
-                    "rounded-md border px-2 py-1.5 text-xs font-medium transition-colors " +
-                    (status === s
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:bg-border/40")
-                  }
+                  value={s}
+                  className={cn(
+                    "rounded-md border px-2 py-1.5 text-xs font-medium outline-none transition-colors",
+                    "focus-visible:ring-2 focus-visible:ring-ring/50",
+                    "data-[state=checked]:border-primary data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary",
+                    "data-[state=unchecked]:border-border data-[state=unchecked]:text-muted-foreground data-[state=unchecked]:hover:bg-border/40",
+                  )}
                 >
                   {STATUS_LABEL[s]}
-                </button>
+                </RadioGroup.Item>
               ))}
-            </div>
+            </RadioGroup.Root>
           </Field>
 
           <div className="grid grid-cols-2 gap-4">

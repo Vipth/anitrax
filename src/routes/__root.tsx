@@ -37,8 +37,9 @@ function RootLayout() {
 
   const SECTIONS = ["/", "/discover", "/settings"];
   const goSection = (dir: -1 | 1) => {
-    // A real menu/listbox owns the arrow keys while it's open.
-    if (document.querySelector('[role="listbox"],[role="menu"]')) return;
+    // A menu, listbox, or dialog owns the arrow keys while it's open.
+    if (document.querySelector('[role="listbox"],[role="menu"],[role="dialog"]'))
+      return;
     const i = SECTIONS.indexOf(router.state.location.pathname);
     const from = i === -1 ? (dir === 1 ? -1 : 0) : i;
     navigate({ to: SECTIONS[(from + dir + SECTIONS.length) % SECTIONS.length] });
