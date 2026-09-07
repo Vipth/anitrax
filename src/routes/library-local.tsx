@@ -49,7 +49,7 @@ function LocalLibraryPage() {
   const { data: files, isLoading } = useLibraryFiles();
   const scan = useScanLibrary();
   const [tab, setTab] = React.useState<"shows" | "unmatched">("shows");
-  const [linking, setLinking] = React.useState<LibraryFile | null>(null);
+  const [linking, setLinking] = React.useState<ReviewGroup | null>(null);
 
   const matched = React.useMemo(
     () => (files ?? []).filter((f) => f.mediaId != null),
@@ -61,13 +61,14 @@ function LocalLibraryPage() {
   );
 
   const shows = React.useMemo(() => groupByMedia(matched), [matched]);
+  const groups = React.useMemo(() => groupUnmatched(unmatched), [unmatched]);
 
   const runScan = () =>
     scan.mutate(undefined, {
       onSuccess: (r) =>
         toast.success(
           "Scan complete",
-          `${r.filesSeen} files · ${r.autoMatched} newly matched · ${r.unmatched} to review`,
+          `${r.filesSeen} files · ${r.autoMatched + r.ruleMatched} matched · ${r.unmatched} to review`,
         ),
       onError: (e) => toast.error("Scan failed", errorMessage(e)),
     });
@@ -114,10 +115,7 @@ function LocalLibraryPage() {
           onChange={setTab}
           options={[
             { value: "shows", label: `Shows (${shows.length})` },
-            {
-              value: "unmatched",
-              label: `To review (${unmatched.length})`,
-            },
+            { value: "unmatched", label: `To review (${groups.length})` },
           ]}
         />
       </div>
@@ -138,19 +136,30 @@ function LocalLibraryPage() {
             ))}
           </div>
         )
-      ) : unmatched.length === 0 ? (
+      ) : groups.length === 0 ? (
         <Empty text="Every file is matched. Nice." />
       ) : (
-        <div className="space-y-1.5">
-          {unmatched.map((f) => (
-            <UnmatchedRow key={f.id} file={f} onLink={() => setLinking(f)} />
-          ))}
-        </div>
+        <>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Files are grouped by the show and season we read from the folder.
+            Link one group and every episode in it is linked — optionally
+            remembered so future episodes match on their own.
+          </p>
+          <div className="space-y-1.5">
+            {groups.map((g) => (
+              <ReviewGroupRow
+                key={g.key}
+                group={g}
+                onLink={() => setLinking(g)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {linking && (
         <LinkDialog
-          file={linking}
+          group={linking}
           open={!!linking}
           onOpenChange={(o) => !o && setLinking(null)}
         />
@@ -159,13 +168,17 @@ function LocalLibraryPage() {
   );
 }
 
+// --------------------------------------------------------------------------- //
+// Matched — grouped by media
+// --------------------------------------------------------------------------- //
+
 interface Show {
   mediaId: number;
   service: string;
   title: MediaTitle | null;
   episodes: number[];
   fileCount: number;
-  hasManual: boolean;
+  linked: boolean;
 }
 
 function groupByMedia(files: LibraryFile[]): Show[] {
@@ -180,12 +193,12 @@ function groupByMedia(files: LibraryFile[]): Show[] {
         title: f.mediaTitle,
         episodes: [],
         fileCount: 0,
-        hasManual: false,
+        linked: false,
       };
       map.set(f.mediaId, s);
     }
     s.fileCount += 1;
-    if (f.matchKind === "manual") s.hasManual = true;
+    if (f.matchKind === "manual" || f.matchKind === "rule") s.linked = true;
     if (f.parsedEpisode != null && !s.episodes.includes(f.parsedEpisode)) {
       s.episodes.push(f.parsedEpisode);
     }
@@ -205,6 +218,12 @@ function ShowRow({ show }: { show: Show }) {
         .filter((f) => f.mediaId === show.mediaId)
         .map((f) => f.id);
       for (const id of ids) await api.unlinkLibraryFile(id);
+      // Drop any remembered rule that points at this show, so it doesn't
+      // silently re-link on the next scan.
+      const rules = await api.libraryLinkRules();
+      for (const r of rules.filter((r) => r.mediaId === show.mediaId)) {
+        await api.deleteLinkRule(r.id);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.libraryFiles });
@@ -229,7 +248,7 @@ function ShowRow({ show }: { show: Show }) {
           {show.episodes.length > 0
             ? ` · Ep ${episodeRanges(show.episodes)}`
             : ""}
-          {show.hasManual ? " · linked by hand" : ""}
+          {show.linked ? " · linked" : ""}
         </p>
       </Link>
       <button
@@ -245,25 +264,74 @@ function ShowRow({ show }: { show: Show }) {
   );
 }
 
-function UnmatchedRow({
-  file,
+// --------------------------------------------------------------------------- //
+// Review queue — grouped by folder title + season
+// --------------------------------------------------------------------------- //
+
+interface ReviewGroup {
+  key: string;
+  title: string;
+  season: number | null;
+  fileIds: number[];
+  episodes: number[];
+  sampleName: string;
+}
+
+function groupUnmatched(files: LibraryFile[]): ReviewGroup[] {
+  const map = new Map<string, ReviewGroup>();
+  for (const f of files) {
+    const title = f.folderTitle || f.parsedTitle || "Unrecognised";
+    const key = `${title.toLowerCase()} ${f.parsedSeason ?? ""}`;
+    let g = map.get(key);
+    if (!g) {
+      g = {
+        key,
+        title,
+        season: f.parsedSeason,
+        fileIds: [],
+        episodes: [],
+        sampleName: f.fileName,
+      };
+      map.set(key, g);
+    }
+    g.fileIds.push(f.id);
+    if (f.parsedEpisode != null && !g.episodes.includes(f.parsedEpisode)) {
+      g.episodes.push(f.parsedEpisode);
+    }
+  }
+  const groups = [...map.values()];
+  for (const g of groups) g.episodes.sort((a, b) => a - b);
+  groups.sort(
+    (a, b) =>
+      a.title.localeCompare(b.title) || (a.season ?? 0) - (b.season ?? 0),
+  );
+  return groups;
+}
+
+function ReviewGroupRow({
+  group,
   onLink,
 }: {
-  file: LibraryFile;
+  group: ReviewGroup;
   onLink: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
+    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
       <FolderSearch className="size-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-1 text-sm" title={file.fileName}>
-          {file.parsedTitle || file.fileName}
+        <p className="line-clamp-1 text-sm font-medium" title={group.sampleName}>
+          {group.title}
+          {group.season != null && (
+            <span className="ml-1.5 rounded bg-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              S{group.season}
+            </span>
+          )}
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
-          {file.parsedEpisode != null ? `Ep ${file.parsedEpisode}` : "—"}
-          {file.parsedSeason != null ? ` · S${file.parsedSeason}` : ""}
-          {file.resolution ? ` · ${file.resolution}` : ""}
-          {file.releaseGroup ? ` · ${file.releaseGroup}` : ""}
+          {group.fileIds.length} file{group.fileIds.length === 1 ? "" : "s"}
+          {group.episodes.length > 0
+            ? ` · Ep ${episodeRanges(group.episodes)}`
+            : ""}
         </p>
       </div>
       <Button size="sm" variant="secondary" onClick={onLink}>
@@ -274,16 +342,17 @@ function UnmatchedRow({
 }
 
 function LinkDialog({
-  file,
+  group,
   open,
   onOpenChange,
 }: {
-  file: LibraryFile;
+  group: ReviewGroup;
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
   const qc = useQueryClient();
-  const [query, setQuery] = React.useState(file.parsedTitle ?? "");
+  const [query, setQuery] = React.useState(group.title);
+  const [remember, setRemember] = React.useState(true);
   const debounced = useDebounced(query.trim(), 500);
   const canSearch = debounced.length >= 3;
 
@@ -296,11 +365,19 @@ function LinkDialog({
 
   const link = useMutation({
     mutationFn: (media: Media) =>
-      api.linkLibraryFile(file.id, media.id.id, media.id.service),
+      api.linkLibraryFiles(
+        group.fileIds,
+        media.id.id,
+        remember,
+        media.id.service,
+      ),
     onSuccess: (_d, media) => {
       qc.invalidateQueries({ queryKey: qk.libraryFiles });
       qc.invalidateQueries({ queryKey: qk.libraryOwned });
-      toast.success("Linked", `${file.fileName} → ${mediaTitle(media)}`);
+      toast.success(
+        "Linked",
+        `${group.fileIds.length} file${group.fileIds.length === 1 ? "" : "s"} → ${mediaTitle(media)}`,
+      );
       onOpenChange(false);
     },
     onError: (e) => toast.error("Couldn't link", errorMessage(e)),
@@ -310,11 +387,16 @@ function LinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Link to a show</DialogTitle>
+          <DialogTitle>
+            Link {group.title}
+            {group.season != null ? ` · Season ${group.season}` : ""}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Matching this file: <span className="text-foreground">{file.fileName}</span>
+            {group.fileIds.length} file
+            {group.fileIds.length === 1 ? "" : "s"} — e.g.{" "}
+            <span className="text-foreground">{group.sampleName}</span>
           </p>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -369,6 +451,18 @@ function LinkDialog({
               ))}
             </ul>
           )}
+
+          <label className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="size-3.5 rounded border-border"
+            />
+            Remember this for future episodes of{" "}
+            {group.title}
+            {group.season != null ? ` Season ${group.season}` : ""}
+          </label>
         </DialogBody>
       </DialogContent>
     </Dialog>

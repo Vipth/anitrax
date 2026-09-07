@@ -6,6 +6,7 @@ import type {
   EntryPatch,
   LibraryFile,
   LibraryFolder,
+  LinkRule,
   Media,
   MediaListEntry,
   OwnedMedia,
@@ -78,9 +79,18 @@ export const api = {
 
   libraryOwned: () => invoke<OwnedMedia[]>("library_owned"),
 
-  linkLibraryFile: (fileId: number, mediaId: number, service?: ServiceKind) =>
-    invoke<void>("link_library_file", { fileId, mediaId, service }),
+  linkLibraryFiles: (
+    fileIds: number[],
+    mediaId: number,
+    remember: boolean,
+    service?: ServiceKind,
+  ) =>
+    invoke<void>("link_library_files", { fileIds, mediaId, remember, service }),
 
   unlinkLibraryFile: (fileId: number) =>
     invoke<void>("unlink_library_file", { fileId }),
+
+  libraryLinkRules: () => invoke<LinkRule[]>("library_link_rules"),
+
+  deleteLinkRule: (id: number) => invoke<void>("delete_link_rule", { id }),
 };

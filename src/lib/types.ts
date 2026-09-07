@@ -133,13 +133,14 @@ export interface LibraryFile {
   sizeBytes: number | null;
   modifiedAt: string | null;
   parsedTitle: string | null;
+  folderTitle: string | null;
   parsedEpisode: number | null;
   parsedSeason: number | null;
   resolution: string | null;
   releaseGroup: string | null;
   service: string | null;
   mediaId: number | null;
-  matchKind: "auto" | "manual" | null;
+  matchKind: "auto" | "manual" | "rule" | null;
   matchScore: number | null;
   scannedAt: string;
   mediaTitle: MediaTitle | null;
@@ -150,11 +151,21 @@ export interface OwnedMedia {
   episodes: number[];
 }
 
+export interface LinkRule {
+  id: number;
+  titleKey: string;
+  season: number | null;
+  service: string;
+  mediaId: number;
+  createdAt: string;
+}
+
 export interface ScanReport {
   folders: number;
   filesSeen: number;
   filesRemoved: number;
   autoMatched: number;
+  ruleMatched: number;
   unmatched: number;
   finishedAt: string;
 }

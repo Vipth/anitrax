@@ -67,14 +67,23 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   (normalised, season/year aware, ordinal + roman-numeral folding), confidence
   threshold + ambiguity guard. A show that's never been synced or searched
   stays unmatched until linked by hand — no surprise AniList traffic
+- ✅ **Folder-aware matching** — reads the show name and season from the
+  containing folders (`Sword Art Online/Season 2/…`), so files with only a
+  generic name still match; the season number picks the right sequel entry
+  ("… S2" → "Sword Art Online II") via AniList's own synonyms
+- ✅ **Remembered links** — linking a review-queue group stores a rule keyed on
+  the folder title + season, so future episodes of that show/season auto-link
+  on the next scan. Rules drop when you unlink the show
 - ✅ `library/watcher.rs` — debounced `notify` watcher; filesystem changes
   trigger an incremental rescan, folder set rebuilt when it changes
-- ✅ `/library-local` route — matched shows grouped with owned-episode ranges,
-  a **To review** queue with a link dialog (debounced AniList search — the one
-  place M3 can touch the network, one request), unlink action
+- ✅ `/library-local` route — matched shows grouped with owned-episode ranges;
+  the **To review** queue is grouped by show + season (one "Link" per group,
+  not per file) with a link dialog (debounced AniList search — the one place M3
+  can touch the network, one request) and a "remember this" toggle
 - ✅ Owned-episode badges on library cards + detail page, tinted when the next
   unwatched episode is already on disk
-- ✅ 11 scanner/matcher unit tests + `episodeRanges` test
+- ✅ 16 scanner/matcher unit tests (folder parsing, season→sequel, rule keys)
+  + `episodeRanges` test
 - ⏳ **Acceptance:** scan a real anime folder, confirm ≥90% correct auto-matches
   against a synced list, and that the manual link picker fills the gaps
 

@@ -31,6 +31,7 @@ pub struct LibraryFile {
     pub size_bytes: Option<i64>,
     pub modified_at: Option<String>,
     pub parsed_title: Option<String>,
+    pub folder_title: Option<String>,
     pub parsed_episode: Option<i64>,
     pub parsed_season: Option<i64>,
     pub resolution: Option<String>,
@@ -52,6 +53,19 @@ pub struct OwnedMedia {
     pub episodes: Vec<i64>,
 }
 
+/// A remembered manual link: "files whose folder/title normalises to `titleKey`
+/// (and season `season`, if set) belong to this media".
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRule {
+    pub id: i64,
+    pub title_key: String,
+    pub season: Option<i64>,
+    pub service: String,
+    pub media_id: i64,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanReport {
@@ -59,6 +73,7 @@ pub struct ScanReport {
     pub files_seen: usize,
     pub files_removed: usize,
     pub auto_matched: usize,
+    pub rule_matched: usize,
     pub unmatched: usize,
     pub finished_at: String,
 }

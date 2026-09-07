@@ -22,6 +22,9 @@ pub struct ScannedFile {
     pub size_bytes: Option<i64>,
     pub modified_at: Option<String>,
     pub title: Option<String>,
+    /// Title guessed from the containing folder(s) — usually the show-level name
+    /// when the file itself only says something generic.
+    pub folder_title: Option<String>,
     pub episode: Option<i64>,
     pub season: Option<i64>,
     pub year: Option<i64>,
@@ -49,9 +52,10 @@ pub fn walk(root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Parse one already-known-to-exist video file. `None` if it's below [`MIN_SIZE`]
-/// or its metadata can't be read.
-pub fn scan_file(path: &Path) -> Option<ScannedFile> {
+/// Parse one already-known-to-exist video file. `root` is the watched folder it
+/// was found under, used to read title/season hints from the folder chain.
+/// `None` if it's below [`MIN_SIZE`] or its metadata can't be read.
+pub fn scan_file(path: &Path, root: &Path) -> Option<ScannedFile> {
     let meta = std::fs::metadata(path).ok()?;
     let size = meta.len();
     if size < MIN_SIZE {
@@ -65,18 +69,110 @@ pub fn scan_file(path: &Path) -> Option<ScannedFile> {
         .map(|t| t.to_rfc3339());
 
     let parsed = parse_name(&file_name);
+    let folder = folder_context(path, root);
     Some(ScannedFile {
         path: path.to_path_buf(),
         file_name,
         size_bytes: Some(size as i64),
         modified_at,
         title: parsed.title,
+        folder_title: folder.title,
         episode: parsed.episode,
-        season: parsed.season,
+        // A season in the file name wins; otherwise take the folder's ("Season 3").
+        season: parsed.season.or(folder.season),
         year: parsed.year,
         resolution: parsed.resolution,
         release_group: parsed.release_group,
     })
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct FolderContext {
+    pub title: Option<String>,
+    pub season: Option<i64>,
+}
+
+/// Read hints from the directories between `root` (exclusive) and the file. The
+/// deepest folder that isn't a "Season 2" / "Specials" style bucket is taken as
+/// the show title; a season number from any bucket folder is picked up too.
+pub fn folder_context(file: &Path, root: &Path) -> FolderContext {
+    let rel = match file.strip_prefix(root) {
+        Ok(r) => r,
+        Err(_) => return FolderContext::default(),
+    };
+    // Components above the file itself, deepest first.
+    let mut dirs: Vec<String> = rel
+        .parent()
+        .into_iter()
+        .flat_map(|p| p.components())
+        .filter_map(|c| match c {
+            std::path::Component::Normal(s) => Some(s.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect();
+    dirs.reverse();
+
+    let mut ctx = FolderContext::default();
+    for dir in &dirs {
+        if let Some(n) = bucket_season(dir) {
+            ctx.season.get_or_insert(n);
+            continue;
+        }
+        if is_generic_folder(dir) {
+            continue;
+        }
+        if ctx.title.is_none() {
+            let parsed = parse_name(dir);
+            ctx.title = parsed.title.filter(|s| !s.is_empty());
+            if ctx.season.is_none() {
+                ctx.season = parsed.season;
+            }
+        }
+    }
+    ctx
+}
+
+/// `"Season 3"`, `"S3"`, `"Series 2"`, `"Cour 2"`, `"Part 2"` -> the number.
+fn bucket_season(name: &str) -> Option<i64> {
+    let l = name.trim().to_lowercase();
+    for prefix in ["season ", "series ", "cour ", "part ", "s"] {
+        if let Some(rest) = l.strip_prefix(prefix) {
+            let rest = rest.trim();
+            if !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()) {
+                return rest.parse().ok();
+            }
+        }
+    }
+    None
+}
+
+fn is_generic_folder(name: &str) -> bool {
+    let l = name.trim().to_lowercase();
+    matches!(
+        l.as_str(),
+        "specials"
+            | "special"
+            | "extras"
+            | "extra"
+            | "ova"
+            | "ovas"
+            | "oad"
+            | "ncop"
+            | "nced"
+            | "nc"
+            | "bd"
+            | "bdrip"
+            | "bluray"
+            | "subs"
+            | "subtitles"
+            | "sp"
+            | "movies"
+            | "movie"
+            | "anime"
+            | "downloads"
+            | "complete"
+            | "batch"
+    )
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -201,5 +297,37 @@ mod tests {
         let r = p("[Group] A Silent Voice (2016) [BD 1080p].mkv");
         assert_eq!(r.episode, None);
         assert!(r.title.is_some());
+    }
+
+    #[test]
+    fn folder_gives_title_and_season() {
+        let root = Path::new("/anime");
+        let file =
+            Path::new("/anime/Sword Art Online/Season 3/[Group] SAO - 13 [1080p].mkv");
+        let ctx = folder_context(file, root);
+        assert_eq!(ctx.title.as_deref(), Some("Sword Art Online"));
+        assert_eq!(ctx.season, Some(3));
+    }
+
+    #[test]
+    fn folder_skips_generic_buckets() {
+        let root = Path::new("/anime");
+        let file = Path::new("/anime/Frieren/Specials/OVA 01.mkv");
+        let ctx = folder_context(file, root);
+        assert_eq!(ctx.title.as_deref(), Some("Frieren"));
+    }
+
+    #[test]
+    fn file_directly_in_root_has_no_folder_title() {
+        let root = Path::new("/anime");
+        let file = Path::new("/anime/[Group] Bocchi the Rock - 01.mkv");
+        assert_eq!(folder_context(file, root), FolderContext::default());
+    }
+
+    #[test]
+    fn bare_s_prefix_is_not_a_season_folder() {
+        assert_eq!(bucket_season("Steins;Gate"), None);
+        assert_eq!(bucket_season("S2"), Some(2));
+        assert_eq!(bucket_season("Season 04"), Some(4));
     }
 }

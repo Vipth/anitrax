@@ -8,7 +8,7 @@ use sqlx::Row;
 use crate::error::AppResult;
 use crate::library::matcher::IndexEntry;
 use crate::library::scanner::ScannedFile;
-use crate::library::{LibraryFile, LibraryFolder, OwnedMedia};
+use crate::library::{LibraryFile, LibraryFolder, LinkRule, OwnedMedia};
 use crate::tracker::model::*;
 
 use super::Db;
@@ -780,9 +780,9 @@ pub async fn enabled_library_folders(db: &Db) -> AppResult<Vec<(i64, String)>> {
 // --------------------------------------------------------------------------- //
 
 const FILE_SELECT: &str = "SELECT lf.id, lf.folder_id, lf.path, lf.file_name, lf.size_bytes,
-    lf.modified_at, lf.parsed_title, lf.parsed_episode, lf.parsed_season, lf.parsed_year,
-    lf.resolution, lf.release_group, lf.service, lf.media_id, lf.match_kind, lf.match_score,
-    lf.scanned_at,
+    lf.modified_at, lf.parsed_title, lf.folder_title, lf.parsed_episode, lf.parsed_season,
+    lf.parsed_year, lf.resolution, lf.release_group, lf.service, lf.media_id, lf.match_kind,
+    lf.match_score, lf.scanned_at,
     m.title_romaji, m.title_english, m.title_native
  FROM library_file lf
  LEFT JOIN media_cache m ON m.service = lf.service AND m.id = lf.media_id";
@@ -808,6 +808,7 @@ fn file_from_row(r: &sqlx::sqlite::SqliteRow) -> LibraryFile {
         size_bytes: r.get("size_bytes"),
         modified_at: r.get("modified_at"),
         parsed_title: r.get("parsed_title"),
+        folder_title: r.get("folder_title"),
         parsed_episode: r.get("parsed_episode"),
         parsed_season: r.get("parsed_season"),
         resolution: r.get("resolution"),
@@ -847,15 +848,16 @@ pub async fn upsert_library_file(
     sqlx::query(
         "INSERT INTO library_file (
             folder_id, path, file_name, size_bytes, modified_at,
-            parsed_title, parsed_episode, parsed_season, parsed_year, resolution, release_group,
-            scanned_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
+            parsed_title, folder_title, parsed_episode, parsed_season, parsed_year,
+            resolution, release_group, scanned_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
          ON CONFLICT(path) DO UPDATE SET
             folder_id = excluded.folder_id,
             file_name = excluded.file_name,
             size_bytes = excluded.size_bytes,
             modified_at = excluded.modified_at,
             parsed_title = excluded.parsed_title,
+            folder_title = excluded.folder_title,
             parsed_episode = excluded.parsed_episode,
             parsed_season = excluded.parsed_season,
             parsed_year = excluded.parsed_year,
@@ -869,6 +871,7 @@ pub async fn upsert_library_file(
     .bind(f.size_bytes)
     .bind(&f.modified_at)
     .bind(&f.title)
+    .bind(&f.folder_title)
     .bind(f.episode)
     .bind(f.season)
     .bind(f.year)
@@ -898,25 +901,31 @@ pub async fn prune_missing_files(
     Ok(res.rows_affected())
 }
 
-/// Files still awaiting a match: `(id, parsed_title, parsed_season, parsed_year)`.
-pub async fn files_needing_match(
-    db: &Db,
-) -> AppResult<Vec<(i64, Option<String>, Option<i64>, Option<i64>)>> {
+/// A file that still needs matching.
+pub struct PendingFile {
+    pub id: i64,
+    pub parsed_title: Option<String>,
+    pub folder_title: Option<String>,
+    pub season: Option<i64>,
+    pub year: Option<i64>,
+}
+
+/// Files awaiting a match — never those the user linked by hand (`manual`).
+pub async fn files_needing_match(db: &Db) -> AppResult<Vec<PendingFile>> {
     let rows = sqlx::query(
-        "SELECT id, parsed_title, parsed_season, parsed_year FROM library_file
+        "SELECT id, parsed_title, folder_title, parsed_season, parsed_year FROM library_file
          WHERE media_id IS NULL AND match_kind IS NOT 'manual'",
     )
     .fetch_all(db)
     .await?;
     Ok(rows
         .iter()
-        .map(|r| {
-            (
-                r.get::<i64, _>("id"),
-                r.get::<Option<String>, _>("parsed_title"),
-                r.get::<Option<i64>, _>("parsed_season"),
-                r.get::<Option<i64>, _>("parsed_year"),
-            )
+        .map(|r| PendingFile {
+            id: r.get("id"),
+            parsed_title: r.get("parsed_title"),
+            folder_title: r.get("folder_title"),
+            season: r.get("parsed_season"),
+            year: r.get("parsed_year"),
         })
         .collect())
 }
@@ -953,6 +962,87 @@ pub async fn clear_file_match(db: &Db, file_id: i64) -> AppResult<()> {
     .bind(file_id)
     .execute(db)
     .await?;
+    Ok(())
+}
+
+/// Point a set of files at one media in a single statement.
+pub async fn set_files_match(
+    db: &Db,
+    file_ids: &[i64],
+    service: ServiceKind,
+    media_id: i64,
+    kind: &str,
+) -> AppResult<()> {
+    if file_ids.is_empty() {
+        return Ok(());
+    }
+    let ids = serde_json::to_string(file_ids)?;
+    sqlx::query(
+        "UPDATE library_file
+         SET service = ?2, media_id = ?3, match_kind = ?4, match_score = NULL
+         WHERE id IN (SELECT value FROM json_each(?1))",
+    )
+    .bind(ids)
+    .bind(service.as_str())
+    .bind(media_id)
+    .bind(kind)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+// --------------------------------------------------------------------------- //
+// Local library — remembered link rules
+// --------------------------------------------------------------------------- //
+
+pub async fn list_link_rules(db: &Db) -> AppResult<Vec<LinkRule>> {
+    let rows = sqlx::query(
+        "SELECT id, title_key, season, service, media_id, created_at
+         FROM library_link_rule ORDER BY title_key, season",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| LinkRule {
+            id: r.get("id"),
+            title_key: r.get("title_key"),
+            season: r.get("season"),
+            service: r.get("service"),
+            media_id: r.get("media_id"),
+            created_at: r.get("created_at"),
+        })
+        .collect())
+}
+
+pub async fn upsert_link_rule(
+    db: &Db,
+    title_key: &str,
+    season: Option<i64>,
+    service: ServiceKind,
+    media_id: i64,
+) -> AppResult<()> {
+    sqlx::query(
+        "INSERT INTO library_link_rule (title_key, season, service, media_id, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(title_key, season) DO UPDATE SET
+            service = excluded.service, media_id = excluded.media_id",
+    )
+    .bind(title_key)
+    .bind(season)
+    .bind(service.as_str())
+    .bind(media_id)
+    .bind(now())
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+pub async fn delete_link_rule(db: &Db, id: i64) -> AppResult<()> {
+    sqlx::query("DELETE FROM library_link_rule WHERE id = ?1")
+        .bind(id)
+        .execute(db)
+        .await?;
     Ok(())
 }
 

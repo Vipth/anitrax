@@ -129,19 +129,46 @@ fn score_pair(file: &str, cand: &str) -> f64 {
         return 1.0;
     }
     let overlap = token_overlap(file, cand);
-    // Containment (one title fully inside the other) is a strong signal — season
-    // packs are often named just "Show" while the entry is "Show Season 2".
+    // Containment ("Show" inside "Show 2") is a good signal, but scale it by how
+    // much extra the longer title carries — "Sword Art Online" sits inside both
+    // "Sword Art Online II" *and* "Sword Art Online Alternative: GGO II", and
+    // only the first is a real match.
+    let words = |s: &str| s.split_whitespace().count() as f64;
     let contains = if file.contains(cand) || cand.contains(file) {
-        0.9
+        let (short, long) = {
+            let (a, b) = (words(file), words(cand));
+            (a.min(b), a.max(b))
+        };
+        0.55 + 0.45 * (short / long)
     } else {
         0.0
     };
     overlap.max(contains)
 }
 
-/// Best match for a parsed file, or `None` if nothing clears the bar / it's
-/// ambiguous. `file_season` (when > 1) nudges toward titles that mention it.
+/// Best match for a parsed file, trying the file-name title and the folder-name
+/// guess and keeping whichever scores higher. `None` if nothing clears the bar
+/// or it's ambiguous. `file_season` (when > 1) nudges toward titles that mention
+/// it.
 pub fn best_match(
+    file_title: &str,
+    folder_title: Option<&str>,
+    file_season: Option<i64>,
+    file_year: Option<i32>,
+    index: &[IndexEntry],
+) -> Option<Match> {
+    let mut best: Option<Match> = None;
+    for candidate in [Some(file_title), folder_title].into_iter().flatten() {
+        if let Some(m) = match_one(candidate, file_season, file_year, index) {
+            if best.map(|b| m.score > b.score).unwrap_or(true) {
+                best = Some(m);
+            }
+        }
+    }
+    best
+}
+
+fn match_one(
     file_title: &str,
     file_season: Option<i64>,
     file_year: Option<i32>,
@@ -153,7 +180,14 @@ pub fn best_match(
     }
     let season_hint = file_season.filter(|s| *s > 1).map(|s| s.to_string());
 
-    let mut scored: Vec<(f64, &IndexEntry)> = index
+    struct Scored<'a> {
+        score: f64,
+        /// This entry's title carries the file's season number (e.g. "… II").
+        season_matched: bool,
+        entry: &'a IndexEntry,
+    }
+
+    let mut scored: Vec<Scored> = index
         .iter()
         .map(|entry| {
             let mut best = entry
@@ -164,16 +198,19 @@ pub fn best_match(
 
             // Season agreement: if the file says S2, favour an entry whose title
             // ends in "2"; gently penalise ones that look like season 1.
+            let mut season_matched = false;
             if let Some(hint) = &season_hint {
-                let mentions = entry.titles.iter().any(|t| {
-                    t.split_whitespace().last() == Some(hint.as_str())
-                });
+                let mentions = entry
+                    .titles
+                    .iter()
+                    .any(|t| t.split_whitespace().last() == Some(hint.as_str()));
                 if mentions {
-                    best += 0.08;
+                    best += 0.10;
+                    season_matched = true;
                 } else if entry.titles.iter().all(|t| {
                     !t.chars().last().map(|c| c.is_ascii_digit()).unwrap_or(false)
                 }) {
-                    best -= 0.05;
+                    best -= 0.06;
                 }
             }
 
@@ -186,28 +223,36 @@ pub fn best_match(
                 }
             }
 
-            (best.clamp(0.0, 1.0), entry)
+            Scored {
+                score: best.clamp(0.0, 1.0),
+                season_matched,
+                entry,
+            }
         })
         .collect();
 
-    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
-    let (top_score, top) = scored.first().copied()?;
-    if top_score < AUTO_THRESHOLD {
+    let top = scored.first()?;
+    if top.score < AUTO_THRESHOLD {
         return None;
     }
-    if let Some((second, _)) = scored.get(1) {
-        if top_score - second < AMBIGUITY_MARGIN
-            && scored[1].1.media_id != top.media_id
-            && (*second) >= AUTO_THRESHOLD
+    if let Some(second) = scored.get(1) {
+        // The season number is a decisive signal: if only the top entry carries
+        // it, a close runner-up isn't real ambiguity.
+        let season_breaks_tie = top.season_matched && !second.season_matched;
+        if !season_breaks_tie
+            && top.score - second.score < AMBIGUITY_MARGIN
+            && second.entry.media_id != top.entry.media_id
+            && second.score >= AUTO_THRESHOLD
         {
             return None; // too close to call
         }
     }
     Some(Match {
-        service: top.service,
-        media_id: top.media_id,
-        score: top_score,
+        service: top.entry.service,
+        media_id: top.entry.media_id,
+        score: top.score,
     })
 }
 
@@ -238,21 +283,21 @@ mod tests {
             idx(1, Some(2023), &["Frieren: Beyond Journey's End", "Sousou no Frieren"]),
             idx(2, Some(2021), &["Ranking of Kings"]),
         ];
-        let m = best_match("Sousou no Frieren", None, None, &index).unwrap();
+        let m = best_match("Sousou no Frieren", None, None, None, &index).unwrap();
         assert_eq!(m.media_id, 1);
     }
 
     #[test]
     fn season_pack_named_bare_still_matches() {
         let index = vec![idx(10, Some(2023), &["Jujutsu Kaisen 2nd Season"])];
-        let m = best_match("Jujutsu Kaisen", Some(2), None, &index).unwrap();
+        let m = best_match("Jujutsu Kaisen", None, Some(2), None, &index).unwrap();
         assert_eq!(m.media_id, 10);
     }
 
     #[test]
     fn unrelated_title_does_not_match() {
         let index = vec![idx(1, None, &["Cowboy Bebop"])];
-        assert!(best_match("Neon Genesis Evangelion", None, None, &index).is_none());
+        assert!(best_match("Neon Genesis Evangelion", None, None, None, &index).is_none());
     }
 
     #[test]
@@ -261,7 +306,7 @@ mod tests {
             idx(1, Some(2019), &["Mushoku Tensei"]),
             idx(2, Some(2021), &["Mushoku Tensei"]),
         ];
-        assert!(best_match("Mushoku Tensei", None, None, &index).is_none());
+        assert!(best_match("Mushoku Tensei", None, None, None, &index).is_none());
     }
 
     #[test]
@@ -270,7 +315,31 @@ mod tests {
             idx(1, Some(2006), &["Higurashi no Naku Koro ni"]),
             idx(2, Some(2020), &["Higurashi no Naku Koro ni Gou"]),
         ];
-        let m = best_match("Higurashi no Naku Koro ni", None, Some(2006), &index).unwrap();
+        let m =
+            best_match("Higurashi no Naku Koro ni", None, None, Some(2006), &index).unwrap();
+        assert_eq!(m.media_id, 1);
+    }
+
+    #[test]
+    fn season_number_picks_the_sequel_over_the_original() {
+        let index = vec![
+            idx(11757, Some(2012), &["Sword Art Online"]),
+            idx(20594, Some(2014), &["Sword Art Online II"]),
+        ];
+        // Folder "Sword Art Online", Season 2 -> the "II" entry, not the original.
+        let m = best_match("SAO", Some("Sword Art Online"), Some(2), None, &index).unwrap();
+        assert_eq!(m.media_id, 20594);
+        // Season 1 -> the original.
+        let m = best_match("SAO", Some("Sword Art Online"), Some(1), None, &index).unwrap();
+        assert_eq!(m.media_id, 11757);
+    }
+
+    #[test]
+    fn folder_title_rescues_a_generic_file_name() {
+        let index = vec![idx(1, Some(2012), &["Sword Art Online"])];
+        // The file name is useless ("13"); the folder carries the real title.
+        assert!(best_match("13", None, None, None, &index).is_none());
+        let m = best_match("13", Some("Sword Art Online"), None, None, &index).unwrap();
         assert_eq!(m.media_id, 1);
     }
 }

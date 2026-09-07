@@ -9,7 +9,9 @@ use serde::Serialize;
 use crate::auth;
 use crate::db::repo;
 use crate::error::{AppError, AppResult};
-use crate::library::{matcher, scanner, LibraryFile, LibraryFolder, OwnedMedia, ScanReport};
+use crate::library::{
+    matcher, scanner, LibraryFile, LibraryFolder, LinkRule, OwnedMedia, ScanReport,
+};
 use crate::state::AppState;
 use crate::tracker::model::*;
 use crate::tracker::TrackerService;
@@ -308,25 +310,52 @@ pub async fn set_library_folder_enabled(
     Ok(())
 }
 
-/// Manually bind a file to a media row. Ensures the media is cached so the
-/// library join has a title to show (one cache-first lookup, no forced fetch
-/// when it's already present).
-pub async fn link_library_file(
+/// Manually bind one or more files to a media row. When `remember` is set, a
+/// link rule is stored (keyed on the first file's folder/file title + season)
+/// so future episodes of the same show/season link on their own.
+///
+/// Ensures the media is cached first — one cache-first lookup, no forced fetch
+/// when it's already present.
+pub async fn link_library_files(
     state: &AppState,
-    file_id: i64,
+    file_ids: &[i64],
     service: Option<&str>,
     media_id: i64,
+    remember: bool,
 ) -> AppResult<()> {
     let svc = parse_service(service);
-    if repo::get_library_file(&state.db, file_id).await?.is_none() {
-        return Err(AppError::other("That library file no longer exists."));
+    if file_ids.is_empty() {
+        return Ok(());
     }
+    let first = repo::get_library_file(&state.db, file_ids[0])
+        .await?
+        .ok_or_else(|| AppError::other("That library file no longer exists."))?;
+
     let _ = ensure_media(state, svc, media_id).await?;
-    repo::set_file_match(&state.db, file_id, svc, media_id, "manual", None).await
+    repo::set_files_match(&state.db, file_ids, svc, media_id, "manual").await?;
+
+    if remember {
+        if let Some(key) =
+            rule_key(first.folder_title.as_deref().or(first.parsed_title.as_deref()))
+        {
+            repo::upsert_link_rule(&state.db, &key, first.parsed_season, svc, media_id).await?;
+            // Sweep up any other pending files the new rule now covers.
+            let _ = run_matcher(state).await?;
+        }
+    }
+    Ok(())
 }
 
 pub async fn unlink_library_file(state: &AppState, file_id: i64) -> AppResult<()> {
     repo::clear_file_match(&state.db, file_id).await
+}
+
+pub async fn library_link_rules(state: &AppState) -> AppResult<Vec<LinkRule>> {
+    repo::list_link_rules(&state.db).await
+}
+
+pub async fn delete_link_rule(state: &AppState, id: i64) -> AppResult<()> {
+    repo::delete_link_rule(&state.db, id).await
 }
 
 /// Rescan every enabled folder.
@@ -353,16 +382,20 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
 
     for (folder_id, path) in folders {
         let root = PathBuf::from(path);
-        let paths = tokio::task::spawn_blocking(move || scanner::walk(&root))
-            .await
-            .unwrap_or_default();
+        let paths = tokio::task::spawn_blocking({
+            let root = root.clone();
+            move || scanner::walk(&root)
+        })
+        .await
+        .unwrap_or_default();
 
         let mut present: Vec<String> = Vec::with_capacity(paths.len());
         for p in paths {
             present.push(p.to_string_lossy().into_owned());
             let scanned = tokio::task::spawn_blocking({
                 let p = p.clone();
-                move || scanner::scan_file(&p)
+                let root = root.clone();
+                move || scanner::scan_file(&p, &root)
             })
             .await
             .ok()
@@ -378,30 +411,77 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
         repo::mark_library_folder_scanned(&state.db, *folder_id).await?;
     }
 
-    let (auto, unmatched) = run_matcher(state).await?;
-    report.auto_matched = auto;
-    report.unmatched = unmatched;
+    let counts = run_matcher(state).await?;
+    report.rule_matched = counts.rule;
+    report.auto_matched = counts.auto;
+    report.unmatched = counts.unmatched;
     report.finished_at = chrono::Utc::now().to_rfc3339();
     Ok(report)
 }
 
-/// Try to match every still-unmatched file against the media cache. Manual
-/// links are never touched. Returns `(newly auto-matched, still unmatched)`.
-async fn run_matcher(state: &AppState) -> AppResult<(usize, usize)> {
+#[derive(Default)]
+struct MatchCounts {
+    rule: usize,
+    auto: usize,
+    unmatched: usize,
+}
+
+/// Resolve still-unmatched files: first apply remembered link rules (keyed on
+/// the folder/file title + season), then fall back to fuzzy matching against
+/// the media cache. Manual links are never touched.
+async fn run_matcher(state: &AppState) -> AppResult<MatchCounts> {
+    let mut counts = MatchCounts::default();
     let pending = repo::files_needing_match(&state.db).await?;
     if pending.is_empty() {
-        return Ok((0, 0));
+        return Ok(counts);
     }
-    let index = repo::media_match_index(&state.db).await?;
-    let mut auto = 0;
-    for (id, title, season, year) in &pending {
-        let Some(title) = title else { continue };
-        if let Some(m) = matcher::best_match(title, *season, year.map(|y| y as i32), &index) {
-            repo::set_file_match(&state.db, *id, m.service, m.media_id, "auto", Some(m.score))
-                .await?;
-            auto += 1;
+
+    // Pass 1 — remembered rules.
+    let rules = repo::list_link_rules(&state.db).await?;
+    if !rules.is_empty() {
+        for f in &pending {
+            let key = rule_key(f.folder_title.as_deref().or(f.parsed_title.as_deref()));
+            let Some(key) = key else { continue };
+            let hit = rules.iter().find(|r| {
+                r.title_key == key && (r.season == f.season || r.season.is_none())
+            });
+            if let Some(r) = hit {
+                let svc = r.service.parse().unwrap_or(ServiceKind::AniList);
+                repo::set_file_match(&state.db, f.id, svc, r.media_id, "rule", None).await?;
+                counts.rule += 1;
+            }
         }
     }
-    let still = repo::files_needing_match(&state.db).await?.len();
-    Ok((auto, still))
+
+    // Pass 2 — fuzzy match whatever's left.
+    let pending = repo::files_needing_match(&state.db).await?;
+    let index = repo::media_match_index(&state.db).await?;
+    for f in &pending {
+        let title = f
+            .parsed_title
+            .as_deref()
+            .or(f.folder_title.as_deref())
+            .unwrap_or("");
+        if let Some(m) = matcher::best_match(
+            title,
+            f.folder_title.as_deref(),
+            f.season,
+            f.year.map(|y| y as i32),
+            &index,
+        ) {
+            repo::set_file_match(&state.db, f.id, m.service, m.media_id, "auto", Some(m.score))
+                .await?;
+            counts.auto += 1;
+        }
+    }
+
+    counts.unmatched = repo::files_needing_match(&state.db).await?.len();
+    Ok(counts)
+}
+
+/// The key a link rule is stored under — normalised title, or `None` if there's
+/// nothing usable to key on.
+fn rule_key(title: Option<&str>) -> Option<String> {
+    let k = matcher::normalize(title?);
+    (!k.is_empty()).then_some(k)
 }

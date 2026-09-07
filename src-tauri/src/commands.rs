@@ -7,7 +7,7 @@ use tauri::State;
 use crate::auth;
 use crate::db::repo::{self, Account};
 use crate::error::AppResult;
-use crate::library::{LibraryFile, LibraryFolder, OwnedMedia, ScanReport};
+use crate::library::{LibraryFile, LibraryFolder, LinkRule, OwnedMedia, ScanReport};
 use crate::state::AppState;
 use crate::sync::{self, SyncReport};
 use crate::tracker::anilist::BudgetSnapshot;
@@ -213,16 +213,27 @@ pub async fn library_owned(state: State<'_, AppState>) -> AppResult<Vec<OwnedMed
 }
 
 #[tauri::command]
-pub async fn link_library_file(
+pub async fn link_library_files(
     state: State<'_, AppState>,
-    file_id: i64,
+    file_ids: Vec<i64>,
     service: Option<String>,
     media_id: i64,
+    remember: bool,
 ) -> AppResult<()> {
-    sync::link_library_file(&state, file_id, service.as_deref(), media_id).await
+    sync::link_library_files(&state, &file_ids, service.as_deref(), media_id, remember).await
 }
 
 #[tauri::command]
 pub async fn unlink_library_file(state: State<'_, AppState>, file_id: i64) -> AppResult<()> {
     sync::unlink_library_file(&state, file_id).await
+}
+
+#[tauri::command]
+pub async fn library_link_rules(state: State<'_, AppState>) -> AppResult<Vec<LinkRule>> {
+    sync::library_link_rules(&state).await
+}
+
+#[tauri::command]
+pub async fn delete_link_rule(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    sync::delete_link_rule(&state, id).await
 }
