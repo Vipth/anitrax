@@ -10,6 +10,13 @@ import {
 import { cn } from "@/lib/utils";
 import { Input, Segmented, Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MediaCard, MediaListRow } from "@/components/media/MediaCard";
 import { EditEntryDialog } from "@/components/media/EditEntryDialog";
 import {
@@ -267,20 +274,27 @@ function LibraryPage() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={sort}
-            onChange={(e) => setSort(e.target.value as LibrarySort)}
-            className="h-8 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary"
+            onValueChange={(v) => setSort(v as LibrarySort)}
           >
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              aria-label="Sort by"
+              className="h-8 min-w-[8.5rem] text-xs"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORTS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button
             onClick={toggleSortDir}
-            className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-border/40"
+            className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface-raised hover:text-foreground"
             title={sortDir === "asc" ? "Ascending" : "Descending"}
           >
             <ArrowDownUp className="size-3.5" />
