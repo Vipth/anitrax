@@ -5,9 +5,10 @@ with a current UI. Cross-platform (Tauri 2 + React 19), syncs your list with
 **AniList**, and is architected from the ground up to **never trip AniList's rate
 limit**.
 
-> Status: **Milestone 1** — polished AniList list manager with two-way sync.
-> Kitsu, the local library scanner, RSS auto-download, a season browser and
-> statistics are planned next (see `C:\Users\vipth\.claude\plans\`).
+> Status: **Milestones 1–2 done** — polished AniList list manager with two-way
+> sync, offline cache, keyboard shortcuts. The local library scanner, a season
+> browser, statistics and RSS auto-download are planned next. Kitsu is parked
+> (AniList-only for now); see `docs/milestones.md`.
 
 ## Features (M1)
 

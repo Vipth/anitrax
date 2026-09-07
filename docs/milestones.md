@@ -1,8 +1,9 @@
 # AniTrax — Milestones
 
 A modern desktop anime tracker in the spirit of Taiga. Cross-platform (Tauri 2 +
-React 19), syncs with **AniList** and **Kitsu**, architected so it never trips
-AniList's rate limit.
+React 19), syncs with **AniList**, architected so it never trips AniList's rate
+limit. (Kitsu is parked — see the bottom of this file — but the `TrackerService`
+trait keeps the door open.)
 
 Full design doc: `~/.claude/plans/i-want-to-create-jiggly-galaxy.md`.
 
@@ -55,17 +56,7 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M3 — Kitsu
-
-- `KitsuService` implementing the same `TrackerService` trait (JSON:API, OAuth)
-- **Verify the live base URL first** — `kitsu.io/api/edge` vs the newer
-  `kitsu.cloud`; the trait keeps this contained to one file
-- Settings: connect Kitsu, choose the primary service, per-service list views
-- Domain-model mapping tests with recorded fixtures, mirroring the AniList ones
-
----
-
-## M4 — Local library scanner
+## M3 — Local library scanner
 
 - Settings: add / remove watched folders
 - `scanner.rs` — walk folders, parse filenames with `anitomy-rs`, pull resolution
@@ -78,7 +69,7 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M5 — Season browser + statistics
+## M4 — Season browser + statistics
 
 - `/seasons` — year/season picker, grid of that season's anime, filter by
   format/genre, one-click add to list (single cached `Page` query per season)
@@ -90,7 +81,7 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M6 — RSS auto-download (qBittorrent)
+## M5 — RSS auto-download (qBittorrent)
 
 - `/rss` — manage feeds; rule builder: bind a rule to a tracked show, set
   quality / release group / episode range, destination path, qBittorrent category
@@ -108,8 +99,22 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 - **M1:** connect AniList, list renders with correct per-status counts, +1 shows
   on anilist.co within seconds, offline relaunch still renders, 10-min hammer
   test stays under 45 req/min with zero 429s
-- **M3:** Kitsu round-trip mirrors the AniList checks
-- **M4:** scan a real folder → ≥90% correct auto-matches, manual link works
-- **M5:** season grid and stats numbers reconcile with AniList
-- **M6:** an RSS rule adds the right torrent to qBittorrent exactly once, with the
+- **M3:** scan a real folder → ≥90% correct auto-matches, manual link works
+- **M4:** season grid and stats numbers reconcile with AniList
+- **M5:** an RSS rule adds the right torrent to qBittorrent exactly once, with the
   configured category and save path
+
+---
+
+## Parked — Kitsu
+
+Dropped from the active roadmap (2026-09-07). AniList-only for the foreseeable
+future. The `TrackerService` trait, the `service` column on every cached row, and
+the `ServiceKind::Kitsu` stubs all stay — adding Kitsu later is a new impl file,
+not a refactor.
+
+- `KitsuService` implementing the same `TrackerService` trait (JSON:API, OAuth)
+- **Verify the live base URL first** — `kitsu.io/api/edge` vs the newer
+  `kitsu.cloud`; the trait keeps this contained to one file
+- Settings: connect Kitsu, choose the primary service, per-service list views
+- Domain-model mapping tests with recorded fixtures, mirroring the AniList ones
