@@ -341,6 +341,28 @@ fn media_from_row(r: &sqlx::sqlite::SqliteRow) -> Media {
     }
 }
 
+/// One media row from the cache, plus when its metadata was last fetched
+/// (RFC3339). Works whether or not the media is on the user's list.
+pub async fn cached_media(
+    db: &Db,
+    service: ServiceKind,
+    id: i64,
+) -> AppResult<Option<(Media, String)>> {
+    let row = sqlx::query(
+        "SELECT service, id, title_romaji, title_english, title_native, format,
+            airing_status, description, episodes, duration, season, season_year,
+            cover_url, cover_color, banner_url, average_score, genres_json,
+            synonyms_json, start_date, site_url, next_episode, next_airing_at,
+            meta_fetched_at
+         FROM media_cache WHERE service = ?1 AND id = ?2",
+    )
+    .bind(service.as_str())
+    .bind(id)
+    .fetch_optional(db)
+    .await?;
+    Ok(row.map(|r| (media_from_row(&r), r.get::<String, _>("meta_fetched_at"))))
+}
+
 // --------------------------------------------------------------------------- //
 // List entries
 // --------------------------------------------------------------------------- //
@@ -586,6 +608,16 @@ pub async fn dirty_entries(db: &Db, service: ServiceKind) -> AppResult<Vec<Media
     );
     let rows = sqlx::query(&sql).bind(service.as_str()).fetch_all(db).await?;
     Ok(rows.iter().map(entry_from_row).collect())
+}
+
+/// How many local edits (including pending deletions) are waiting to be pushed.
+pub async fn dirty_count(db: &Db, service: ServiceKind) -> AppResult<i64> {
+    let n: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM list_entry WHERE service = ?1 AND dirty = 1")
+            .bind(service.as_str())
+            .fetch_one(db)
+            .await?;
+    Ok(n)
 }
 
 pub async fn dirty_deleted(db: &Db, service: ServiceKind) -> AppResult<Vec<(i64, Option<i64>)>> {

@@ -13,8 +13,6 @@ use crate::tracker::model::*;
 use crate::tracker::TrackerService;
 
 /// How long a cached media metadata row stays fresh before we'd refetch it.
-/// Wired into `ensure_media` staleness checks in milestone 2.
-#[allow(dead_code)]
 pub const META_TTL: Duration = Duration::from_secs(14 * 24 * 3600);
 /// How stale the list can get on launch before we auto-sync.
 pub const LAUNCH_SYNC_AFTER: Duration = Duration::from_secs(30 * 60);
@@ -22,6 +20,9 @@ pub const LAUNCH_SYNC_AFTER: Duration = Duration::from_secs(30 * 60);
 pub const BACKGROUND_SYNC_EVERY: Duration = Duration::from_secs(30 * 60);
 /// Debounce before the push worker flushes dirty rows.
 pub const PUSH_DEBOUNCE: Duration = Duration::from_secs(3);
+/// If a push leaves rows still dirty (offline / rate-limited / API down), retry
+/// on this cadence until the queue clears.
+pub const PUSH_RETRY_EVERY: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +72,12 @@ pub async fn full_sync(state: &AppState, service: Option<&str>) -> AppResult<Syn
         ServiceKind::Kitsu => return Err(AppError::other("Kitsu sync arrives in a later milestone")),
     };
 
+    // Send local edits before pulling, so the server state we reconcile against
+    // already reflects them. Best-effort — a failed push just leaves rows dirty.
+    if repo::dirty_count(&state.db, svc).await? > 0 {
+        let _ = push_dirty(state, svc).await;
+    }
+
     let entries = service_impl.full_list(&token, user_id).await?;
     repo::replace_list_from_remote(&state.db, svc, &entries).await?;
 
@@ -109,12 +116,33 @@ pub async fn library(state: &AppState, service: Option<&str>) -> AppResult<Vec<M
     repo::all_entries(&state.db, parse_service(service)).await
 }
 
-/// Ensure we have a media row, fetching (and caching) it if absent or stale.
+/// Ensure we have a media row. Serves it from the cache when the cached copy is
+/// still within [`META_TTL`]; refetches (and re-caches) when it's stale or
+/// missing, falling back to the stale copy if the network is unavailable.
 pub async fn ensure_media(state: &AppState, svc: ServiceKind, media_id: i64) -> AppResult<Media> {
-    if let Some(entry) = repo::get_entry(&state.db, svc, media_id).await? {
-        return Ok(entry.media);
+    if let Some((media, fetched_at)) = repo::cached_media(&state.db, svc, media_id).await? {
+        let fresh = chrono::DateTime::parse_from_rfc3339(&fetched_at)
+            .ok()
+            .and_then(|t| {
+                (chrono::Utc::now() - t.with_timezone(&chrono::Utc))
+                    .to_std()
+                    .ok()
+            })
+            .map(|age| age < META_TTL)
+            .unwrap_or(false);
+        if fresh {
+            return Ok(media);
+        }
+        // Stale — try to refresh, but a stale copy beats an error.
+        return match refetch_media(state, svc, media_id).await {
+            Ok(m) => Ok(m),
+            Err(_) => Ok(media),
+        };
     }
-    // Not on the list — look in the media cache directly, else fetch.
+    refetch_media(state, svc, media_id).await
+}
+
+async fn refetch_media(state: &AppState, svc: ServiceKind, media_id: i64) -> AppResult<Media> {
     let token = auth::load_token(svc)?;
     let fetched = match svc {
         ServiceKind::AniList => {
@@ -156,6 +184,11 @@ pub async fn remove_entry(
     repo::mark_entry_deleted(&state.db, svc, media_id).await?;
     state.push.nudge();
     Ok(())
+}
+
+/// Whether any local edits are still waiting to reach the service.
+pub async fn has_pending_pushes(state: &AppState, svc: ServiceKind) -> bool {
+    repo::dirty_count(&state.db, svc).await.unwrap_or(0) > 0
 }
 
 /// Flush every dirty row for a service. Naturally paced by the gateway.

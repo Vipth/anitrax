@@ -97,18 +97,34 @@ pub fn run() {
                 });
             }
 
-            // Background push worker: debounced flush of dirty rows.
+            // Background push worker: debounced flush of dirty rows, then retry
+            // on a slow cadence until the queue actually clears (covers offline
+            // / rate-limited / API-down edits made earlier).
             {
                 let h = handle.clone();
                 let s = state.clone();
                 tauri::async_runtime::spawn(async move {
+                    // Flush anything left dirty from a previous session.
+                    if sync::has_pending_pushes(&s, ServiceKind::AniList).await {
+                        s.push.nudge();
+                    }
                     loop {
                         s.push.wait().await;
                         tokio::time::sleep(sync::PUSH_DEBOUNCE).await;
-                        if let Err(e) = sync::push_dirty(&s, ServiceKind::AniList).await {
-                            tracing::warn!(?e, "push worker error");
+                        // Retry a bounded number of times, then wait for the next
+                        // edit or full sync rather than hammering forever.
+                        for attempt in 0..8u32 {
+                            if attempt > 0 {
+                                tokio::time::sleep(sync::PUSH_RETRY_EVERY).await;
+                            }
+                            if let Err(e) = sync::push_dirty(&s, ServiceKind::AniList).await {
+                                tracing::warn!(?e, "push worker error");
+                            }
+                            let _ = h.emit("entries-updated", ());
+                            if !sync::has_pending_pushes(&s, ServiceKind::AniList).await {
+                                break;
+                            }
                         }
-                        let _ = h.emit("entries-updated", ());
                     }
                 });
             }
