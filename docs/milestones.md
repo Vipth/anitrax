@@ -56,16 +56,27 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M3 — Local library scanner
+## M3 — Local library scanner  *(implemented — needs a real-folder acceptance pass)*
 
-- Settings: add / remove watched folders
-- `scanner.rs` — walk folders, parse filenames with `anitomy-rs`, pull resolution
-  & release group
-- `matcher.rs` — fuzzy-match parsed titles to `media_cache` (normalized title +
-  synonyms + year); an "unmatched" queue with a manual **link to media** picker
-- Owned-episode badges on cards and the detail page
-- `/library-local` — file list, re-scan button, filesystem watcher for incremental updates
-- Unit tests: fixture filenames → expected media
+- ✅ Settings → **Watched folders**: add / remove / enable folders (native
+  picker), per-folder file count + last-scan time, "Rescan now"
+- ✅ `library/scanner.rs` — `walkdir` + `anitomy` (Rapptz's pure-Rust port, git
+  dep): title / episode / season / year / resolution / release group;
+  batch-release detection; 20 MB floor to skip samples
+- ✅ `library/matcher.rs` — **cache-only** title matching against `media_cache`
+  (normalised, season/year aware, ordinal + roman-numeral folding), confidence
+  threshold + ambiguity guard. A show that's never been synced or searched
+  stays unmatched until linked by hand — no surprise AniList traffic
+- ✅ `library/watcher.rs` — debounced `notify` watcher; filesystem changes
+  trigger an incremental rescan, folder set rebuilt when it changes
+- ✅ `/library-local` route — matched shows grouped with owned-episode ranges,
+  a **To review** queue with a link dialog (debounced AniList search — the one
+  place M3 can touch the network, one request), unlink action
+- ✅ Owned-episode badges on library cards + detail page, tinted when the next
+  unwatched episode is already on disk
+- ✅ 11 scanner/matcher unit tests + `episodeRanges` test
+- ⏳ **Acceptance:** scan a real anime folder, confirm ≥90% correct auto-matches
+  against a synced list, and that the manual link picker fills the gaps
 
 ---
 

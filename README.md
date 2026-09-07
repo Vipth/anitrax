@@ -5,12 +5,13 @@ with a current UI. Cross-platform (Tauri 2 + React 19), syncs your list with
 **AniList**, and is architected from the ground up to **never trip AniList's rate
 limit**.
 
-> Status: **Milestones 1–2 done** — polished AniList list manager with two-way
-> sync, offline cache, keyboard shortcuts. The local library scanner, a season
-> browser, statistics and RSS auto-download are planned next. Kitsu is parked
+> Status: **Milestones 1–2 done, M3 in progress** — polished AniList list
+> manager with two-way sync, offline cache, keyboard shortcuts, and a local
+> library scanner (watched folders, filename parsing, cache-only matching). A
+> season browser, statistics and RSS auto-download are next. Kitsu is parked
 > (AniList-only for now); see `docs/milestones.md`.
 
-## Features (M1)
+## Features
 
 - Library with status tabs (Watching / Rewatching / Planning / On Hold /
   Completed / Dropped), grid & list layouts, sort and filter
@@ -18,6 +19,9 @@ limit**.
 - Media detail pages, debounced Discover search, next-episode countdowns
 - AniList sign-in (OAuth implicit grant; tokens stored in the OS keychain)
 - Works fully offline from a local cache; edits queue and sync on reconnect
+- **Local library scanner** — point it at your episode folders; it parses
+  filenames, matches them to your list offline, and flags which episodes are on
+  disk. Files it can't place go to a review queue with a manual link picker
 
 ## Rate-limit resilience
 
