@@ -98,7 +98,7 @@ impl AniListGateway {
         let stats = Arc::new(Mutex::new(Stats::default()));
         let worker = Worker {
             client: reqwest::Client::builder()
-                .user_agent("AnimeTracker/0.1 (+https://github.com/bcnet-dev/anime-tracker)")
+                .user_agent("AniTrax/0.1 (+https://github.com/Vipth/anitrax)")
                 .timeout(Duration::from_secs(30))
                 .build()
                 .expect("build reqwest client"),

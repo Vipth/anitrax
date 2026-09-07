@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Anime Tracker",
+  "productName": "AniTrax",
   "version": "0.1.0",
-  "identifier": "dev.bcnet.animetracker",
+  "identifier": "dev.bcnet.anitrax",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Anime Tracker",
+        "title": "AniTrax",
         "width": 1280,
         "height": 832,
         "minWidth": 940,
@@ -26,7 +26,7 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["animetracker"]
+        "schemes": ["anitrax"]
       }
     }
   },

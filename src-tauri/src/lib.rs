@@ -16,7 +16,7 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "anime_tracker_lib=info,warn".into()),
+                .unwrap_or_else(|_| "anitrax_lib=info,warn".into()),
         )
         .init();
 
@@ -65,7 +65,7 @@ pub fn run() {
                 app.deep_link().on_open_url(move |event| {
                     for url in event.urls() {
                         let url = url.to_string();
-                        if !url.starts_with("animetracker://oauth/anilist") {
+                        if !url.starts_with("anitrax://oauth/anilist") {
                             continue;
                         }
                         let h = dl_handle.clone();

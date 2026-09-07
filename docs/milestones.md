@@ -1,4 +1,4 @@
-# Anime Tracker — Milestones
+# AniTrax — Milestones
 
 A modern desktop anime tracker in the spirit of Taiga. Cross-platform (Tauri 2 +
 React 19), syncs with **AniList** and **Kitsu**, architected so it never trips

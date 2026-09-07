@@ -27,7 +27,7 @@ export function Sidebar() {
         <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Sparkles className="size-4" />
         </div>
-        <span className="text-sm font-semibold">Anime Tracker</span>
+        <span className="text-sm font-semibold">AniTrax</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">

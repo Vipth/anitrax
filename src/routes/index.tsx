@@ -177,7 +177,7 @@ function LibraryPage() {
     return (
       <EmptyState
         title="Connect an account to get started"
-        body="Anime Tracker syncs your list with AniList. Add your account in settings and your library shows up here."
+        body="AniTrax syncs your list with AniList. Add your account in settings and your library shows up here."
         action={
           <Button asChild>
             <Link to="/settings">Open settings</Link>

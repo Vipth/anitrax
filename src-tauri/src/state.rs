@@ -21,7 +21,7 @@ impl AppState {
             .path()
             .app_data_dir()
             .map_err(|e| crate::error::AppError::other(format!("no app data dir: {e}")))?;
-        let db_path = dir.join("anime-tracker.db");
+        let db_path = dir.join("anitrax.db");
         let db = db::connect(&db_path).await?;
 
         let gateway = AniListGateway::spawn();

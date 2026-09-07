@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "anime-tracker-dev",
+      "name": "anitrax-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "tauri", "dev"],
       "port": 1420

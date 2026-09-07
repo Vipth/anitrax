@@ -60,7 +60,7 @@ export const usePrefs = create<PrefsState>()(
         set((s) => ({ sortDir: s.sortDir === "asc" ? "desc" : "asc" })),
       setStatusTab: (statusTab) => set({ statusTab }),
     }),
-    { name: "anime-tracker-prefs" },
+    { name: "anitrax-prefs" },
   ),
 );
 

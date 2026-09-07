@@ -143,7 +143,7 @@ function ConnectFlow({
               label="Easiest — AniList shows you a token to paste below"
             />
             <RedirectOption
-              url={redirect || "animetracker://oauth/anilist"}
+              url={redirect || "anitrax://oauth/anilist"}
               label="Seamless — the app captures sign-in automatically"
             />
           </div>

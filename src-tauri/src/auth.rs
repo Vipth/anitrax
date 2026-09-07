@@ -4,7 +4,7 @@
 //! `https://anilist.co/api/v2/oauth/authorize?client_id=…&response_type=token`
 //! (no `redirect_uri` — AniList uses the URL registered on the client) and the
 //! user approves. Then, depending on the client's registered redirect URL:
-//!   * `animetracker://oauth/anilist` — the deep-link plugin hands us the full
+//!   * `anitrax://oauth/anilist` — the deep-link plugin hands us the full
 //!     redirect URL and we pull `access_token` out of the fragment; or
 //!   * `https://anilist.co/api/v2/oauth/pin` — AniList shows the token on a page
 //!     and the user pastes it into Settings.
@@ -17,8 +17,8 @@ use url::Url;
 use crate::error::{AppError, AppResult};
 use crate::tracker::model::ServiceKind;
 
-const KEYRING_SERVICE: &str = "dev.bcnet.animetracker";
-pub const ANILIST_REDIRECT: &str = "animetracker://oauth/anilist";
+const KEYRING_SERVICE: &str = "dev.bcnet.anitrax";
+pub const ANILIST_REDIRECT: &str = "anitrax://oauth/anilist";
 
 fn entry(service: ServiceKind) -> AppResult<Entry> {
     Entry::new(KEYRING_SERVICE, &format!("token:{}", service.as_str()))
@@ -63,7 +63,7 @@ pub fn anilist_authorize_url(client_id: &str) -> String {
 }
 
 /// Extract `access_token` from a redirect URL like
-/// `animetracker://oauth/anilist#access_token=abc&token_type=Bearer&expires_in=...`
+/// `anitrax://oauth/anilist#access_token=abc&token_type=Bearer&expires_in=...`
 pub fn parse_anilist_redirect(redirect: &str) -> Option<String> {
     let url = Url::parse(redirect).ok()?;
 
@@ -106,19 +106,19 @@ mod tests {
 
     #[test]
     fn pulls_token_from_fragment() {
-        let url = "animetracker://oauth/anilist#access_token=xyz123&token_type=Bearer&expires_in=31536000";
+        let url = "anitrax://oauth/anilist#access_token=xyz123&token_type=Bearer&expires_in=31536000";
         assert_eq!(parse_anilist_redirect(url).as_deref(), Some("xyz123"));
     }
 
     #[test]
     fn pulls_token_from_query() {
-        let url = "animetracker://oauth/anilist?access_token=abc";
+        let url = "anitrax://oauth/anilist?access_token=abc";
         assert_eq!(parse_anilist_redirect(url).as_deref(), Some("abc"));
     }
 
     #[test]
     fn missing_token_is_none() {
-        let url = "animetracker://oauth/anilist#error=access_denied";
+        let url = "anitrax://oauth/anilist#error=access_denied";
         assert_eq!(parse_anilist_redirect(url), None);
     }
 

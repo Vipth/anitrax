@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anime Tracker</title>
+    <title>AniTrax</title>
     <script>
       // Apply the saved theme before first paint to avoid a flash.
       // Mirrors applyTheme() in src/stores/prefs.ts.
       try {
         var persisted = JSON.parse(
-          localStorage.getItem("anime-tracker-prefs") || "{}",
+          localStorage.getItem("anitrax-prefs") || "{}",
         );
         var t = (persisted.state && persisted.state.theme) || "system";
         var el = document.documentElement;

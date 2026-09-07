@@ -59,7 +59,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "anime-tracker"
+name = "anitrax"
 version = "0.1.0"
 dependencies = [
  "anyhow",

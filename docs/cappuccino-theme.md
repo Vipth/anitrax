@@ -1,6 +1,6 @@
 # Cappuccino — a warm UI theme
 
-> Not shipped in Anime Tracker (it was too easily confused with "Catppuccin").
+> Not shipped in AniTrax (it was too easily confused with "Catppuccin").
 > Kept here as a standalone palette spec, and as the canonical reference for the
 > Tailwind v4 / v3 / plain-CSS wiring that the other theme docs point back to.
 

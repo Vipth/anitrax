@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    anime_tracker_lib::run()
+    anitrax_lib::run()
 }

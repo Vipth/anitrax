@@ -1,4 +1,4 @@
-# Anime Tracker
+# AniTrax
 
 A modern desktop anime tracker in the spirit of [Taiga](https://taiga.moe), rebuilt
 with a current UI. Cross-platform (Tauri 2 + React 19), syncs your list with
@@ -64,7 +64,7 @@ tools + WebView2 (bundled on Windows 11).
 ### Connecting AniList
 
 1. Create a client at <https://anilist.co/settings/developer> with redirect URL
-   `animetracker://oauth/anilist`.
+   `anitrax://oauth/anilist`.
 2. In the app: **Settings → paste the client ID → Sign in with AniList**.
    (If the deep-link redirect doesn't fire, the developer page also lets you mint
    an access token directly — paste it under "Sign-in didn't redirect back?".)
