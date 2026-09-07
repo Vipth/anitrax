@@ -27,4 +27,4 @@ vite.config.js
 *.njsproj
 *.sln
 *.sw?
-start.sh
+start.bat
