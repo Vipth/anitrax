@@ -1,6 +1,7 @@
 //! Orchestration: combine the tracker service with the local cache. Commands
 //! call into here; this module owns the "when do we hit the network" policy.
 
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Serialize;
@@ -8,6 +9,7 @@ use serde::Serialize;
 use crate::auth;
 use crate::db::repo;
 use crate::error::{AppError, AppResult};
+use crate::library::{matcher, scanner, LibraryFile, LibraryFolder, OwnedMedia, ScanReport};
 use crate::state::AppState;
 use crate::tracker::model::*;
 use crate::tracker::TrackerService;
@@ -252,4 +254,154 @@ pub async fn search(state: &AppState, service: Option<&str>, query: &str) -> App
 
 pub async fn last_sync(state: &AppState, service: Option<&str>) -> AppResult<Option<String>> {
     repo::last_full_sync(&state.db, parse_service(service)).await
+}
+
+// --------------------------------------------------------------------------- //
+// Local library (M3). All offline — the only network touch is an optional
+// cache-miss media lookup when the user links a file by hand.
+// --------------------------------------------------------------------------- //
+
+pub async fn library_folders(state: &AppState) -> AppResult<Vec<LibraryFolder>> {
+    repo::list_library_folders(&state.db).await
+}
+
+pub async fn library_files(state: &AppState) -> AppResult<Vec<LibraryFile>> {
+    repo::library_files(&state.db).await
+}
+
+pub async fn owned_media(state: &AppState) -> AppResult<Vec<OwnedMedia>> {
+    repo::owned_media(&state.db).await
+}
+
+/// Add a folder and immediately scan it. Errors if the path isn't a directory.
+pub async fn add_library_folder(state: &AppState, path: &str) -> AppResult<LibraryFolder> {
+    let p = Path::new(path);
+    if !p.is_dir() {
+        return Err(AppError::other("That path isn't a folder we can read."));
+    }
+    let folder = repo::add_library_folder(&state.db, path).await?;
+    scan_folders(state, &[(folder.id, folder.path.clone())]).await?;
+    state.watcher.refresh(state).await;
+    repo::get_library_folder(&state.db, folder.id)
+        .await?
+        .ok_or_else(|| AppError::other("folder vanished after add"))
+}
+
+pub async fn remove_library_folder(state: &AppState, id: i64) -> AppResult<()> {
+    repo::remove_library_folder(&state.db, id).await?;
+    state.watcher.refresh(state).await;
+    Ok(())
+}
+
+pub async fn set_library_folder_enabled(
+    state: &AppState,
+    id: i64,
+    enabled: bool,
+) -> AppResult<()> {
+    repo::set_library_folder_enabled(&state.db, id, enabled).await?;
+    state.watcher.refresh(state).await;
+    if enabled {
+        if let Some(f) = repo::get_library_folder(&state.db, id).await? {
+            scan_folders(state, &[(f.id, f.path)]).await?;
+        }
+    }
+    Ok(())
+}
+
+/// Manually bind a file to a media row. Ensures the media is cached so the
+/// library join has a title to show (one cache-first lookup, no forced fetch
+/// when it's already present).
+pub async fn link_library_file(
+    state: &AppState,
+    file_id: i64,
+    service: Option<&str>,
+    media_id: i64,
+) -> AppResult<()> {
+    let svc = parse_service(service);
+    if repo::get_library_file(&state.db, file_id).await?.is_none() {
+        return Err(AppError::other("That library file no longer exists."));
+    }
+    let _ = ensure_media(state, svc, media_id).await?;
+    repo::set_file_match(&state.db, file_id, svc, media_id, "manual", None).await
+}
+
+pub async fn unlink_library_file(state: &AppState, file_id: i64) -> AppResult<()> {
+    repo::clear_file_match(&state.db, file_id).await
+}
+
+/// Rescan every enabled folder.
+pub async fn scan_library(state: &AppState) -> AppResult<ScanReport> {
+    let folders = repo::enabled_library_folders(&state.db).await?;
+    scan_folders(state, &folders).await
+}
+
+/// Rescan the folders that contain `roots` (used by the filesystem watcher).
+pub async fn rescan_paths(state: &AppState, roots: &[PathBuf]) -> AppResult<ScanReport> {
+    let all = repo::enabled_library_folders(&state.db).await?;
+    let hit: Vec<(i64, String)> = all
+        .into_iter()
+        .filter(|(_, p)| roots.iter().any(|r| r == Path::new(p)))
+        .collect();
+    scan_folders(state, &hit).await
+}
+
+async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<ScanReport> {
+    let mut report = ScanReport {
+        folders: folders.len(),
+        ..Default::default()
+    };
+
+    for (folder_id, path) in folders {
+        let root = PathBuf::from(path);
+        let paths = tokio::task::spawn_blocking(move || scanner::walk(&root))
+            .await
+            .unwrap_or_default();
+
+        let mut present: Vec<String> = Vec::with_capacity(paths.len());
+        for p in paths {
+            present.push(p.to_string_lossy().into_owned());
+            let scanned = tokio::task::spawn_blocking({
+                let p = p.clone();
+                move || scanner::scan_file(&p)
+            })
+            .await
+            .ok()
+            .flatten();
+            if let Some(sf) = scanned {
+                report.files_seen += 1;
+                repo::upsert_library_file(&state.db, *folder_id, &sf).await?;
+            }
+        }
+
+        report.files_removed +=
+            repo::prune_missing_files(&state.db, *folder_id, &present).await? as usize;
+        repo::mark_library_folder_scanned(&state.db, *folder_id).await?;
+    }
+
+    let (auto, unmatched) = run_matcher(state).await?;
+    report.auto_matched = auto;
+    report.unmatched = unmatched;
+    report.finished_at = chrono::Utc::now().to_rfc3339();
+    Ok(report)
+}
+
+/// Try to match every still-unmatched file against the media cache. Manual
+/// links are never touched. Returns `(newly auto-matched, still unmatched)`.
+async fn run_matcher(state: &AppState) -> AppResult<(usize, usize)> {
+    let pending = repo::files_needing_match(&state.db).await?;
+    if pending.is_empty() {
+        return Ok((0, 0));
+    }
+    let index = repo::media_match_index(&state.db).await?;
+    let mut auto = 0;
+    for (id, title, season, year) in &pending {
+        let Some(title) = title else { continue };
+        if let Some(m) = matcher::best_match(title, *season, year.map(|y| y as i32), &index) {
+            repo::set_file_match(&state.db, *id, m.service, m.media_id, "auto", Some(m.score))
+                .await?;
+            auto += 1;
+        }
+    }
+    let still = repo::files_needing_match(&state.db).await?.len();
+    Ok((auto, still))
 }

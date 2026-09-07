@@ -6,6 +6,9 @@ use serde_json::Value;
 use sqlx::Row;
 
 use crate::error::AppResult;
+use crate::library::matcher::IndexEntry;
+use crate::library::scanner::ScannedFile;
+use crate::library::{LibraryFile, LibraryFolder, OwnedMedia};
 use crate::tracker::model::*;
 
 use super::Db;
@@ -687,4 +690,328 @@ pub async fn last_full_sync(db: &Db, service: ServiceKind) -> AppResult<Option<S
         .fetch_optional(db)
         .await?;
     Ok(row.and_then(|r| r.get::<Option<String>, _>("last_full_sync")))
+}
+
+// --------------------------------------------------------------------------- //
+// Local library — watched folders
+// --------------------------------------------------------------------------- //
+
+fn folder_from_row(r: &sqlx::sqlite::SqliteRow) -> LibraryFolder {
+    LibraryFolder {
+        id: r.get("id"),
+        path: r.get("path"),
+        enabled: r.get::<i64, _>("enabled") != 0,
+        added_at: r.get("added_at"),
+        scanned_at: r.get("scanned_at"),
+        file_count: r.get("file_count"),
+    }
+}
+
+const FOLDER_SELECT: &str = "SELECT f.id, f.path, f.enabled, f.added_at, f.scanned_at,
+    (SELECT COUNT(*) FROM library_file lf WHERE lf.folder_id = f.id) AS file_count
+ FROM library_folder f";
+
+pub async fn list_library_folders(db: &Db) -> AppResult<Vec<LibraryFolder>> {
+    let sql = format!("{FOLDER_SELECT} ORDER BY f.added_at");
+    let rows = sqlx::query(&sql).fetch_all(db).await?;
+    Ok(rows.iter().map(folder_from_row).collect())
+}
+
+pub async fn get_library_folder(db: &Db, id: i64) -> AppResult<Option<LibraryFolder>> {
+    let sql = format!("{FOLDER_SELECT} WHERE f.id = ?1");
+    let row = sqlx::query(&sql).bind(id).fetch_optional(db).await?;
+    Ok(row.as_ref().map(folder_from_row))
+}
+
+/// Insert a folder (or return the existing row for that path).
+pub async fn add_library_folder(db: &Db, path: &str) -> AppResult<LibraryFolder> {
+    sqlx::query(
+        "INSERT INTO library_folder (path, enabled, added_at) VALUES (?1, 1, ?2)
+         ON CONFLICT(path) DO NOTHING",
+    )
+    .bind(path)
+    .bind(now())
+    .execute(db)
+    .await?;
+    let sql = format!("{FOLDER_SELECT} WHERE f.path = ?1");
+    let row = sqlx::query(&sql).bind(path).fetch_one(db).await?;
+    Ok(folder_from_row(&row))
+}
+
+pub async fn remove_library_folder(db: &Db, id: i64) -> AppResult<()> {
+    sqlx::query("DELETE FROM library_folder WHERE id = ?1")
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn set_library_folder_enabled(db: &Db, id: i64, enabled: bool) -> AppResult<()> {
+    sqlx::query("UPDATE library_folder SET enabled = ?2 WHERE id = ?1")
+        .bind(id)
+        .bind(i64::from(enabled))
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn mark_library_folder_scanned(db: &Db, id: i64) -> AppResult<()> {
+    sqlx::query("UPDATE library_folder SET scanned_at = ?2 WHERE id = ?1")
+        .bind(id)
+        .bind(now())
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// `(id, path)` for every enabled folder.
+pub async fn enabled_library_folders(db: &Db) -> AppResult<Vec<(i64, String)>> {
+    let rows = sqlx::query("SELECT id, path FROM library_folder WHERE enabled = 1 ORDER BY added_at")
+        .fetch_all(db)
+        .await?;
+    Ok(rows
+        .iter()
+        .map(|r| (r.get::<i64, _>("id"), r.get::<String, _>("path")))
+        .collect())
+}
+
+// --------------------------------------------------------------------------- //
+// Local library — files
+// --------------------------------------------------------------------------- //
+
+const FILE_SELECT: &str = "SELECT lf.id, lf.folder_id, lf.path, lf.file_name, lf.size_bytes,
+    lf.modified_at, lf.parsed_title, lf.parsed_episode, lf.parsed_season, lf.parsed_year,
+    lf.resolution, lf.release_group, lf.service, lf.media_id, lf.match_kind, lf.match_score,
+    lf.scanned_at,
+    m.title_romaji, m.title_english, m.title_native
+ FROM library_file lf
+ LEFT JOIN media_cache m ON m.service = lf.service AND m.id = lf.media_id";
+
+fn file_from_row(r: &sqlx::sqlite::SqliteRow) -> LibraryFile {
+    let media_title = match (
+        r.get::<Option<String>, _>("title_romaji"),
+        r.get::<Option<String>, _>("title_english"),
+        r.get::<Option<String>, _>("title_native"),
+    ) {
+        (None, None, None) => None,
+        (romaji, english, native) => Some(MediaTitle {
+            romaji,
+            english,
+            native,
+        }),
+    };
+    LibraryFile {
+        id: r.get("id"),
+        folder_id: r.get("folder_id"),
+        path: r.get("path"),
+        file_name: r.get("file_name"),
+        size_bytes: r.get("size_bytes"),
+        modified_at: r.get("modified_at"),
+        parsed_title: r.get("parsed_title"),
+        parsed_episode: r.get("parsed_episode"),
+        parsed_season: r.get("parsed_season"),
+        resolution: r.get("resolution"),
+        release_group: r.get("release_group"),
+        service: r.get("service"),
+        media_id: r.get("media_id"),
+        match_kind: r.get("match_kind"),
+        match_score: r.get("match_score"),
+        scanned_at: r.get("scanned_at"),
+        media_title,
+    }
+}
+
+pub async fn library_files(db: &Db) -> AppResult<Vec<LibraryFile>> {
+    let sql = format!(
+        "{FILE_SELECT} ORDER BY COALESCE(m.title_romaji, lf.parsed_title, lf.file_name) \
+         COLLATE NOCASE, lf.parsed_episode"
+    );
+    let rows = sqlx::query(&sql).fetch_all(db).await?;
+    Ok(rows.iter().map(file_from_row).collect())
+}
+
+pub async fn get_library_file(db: &Db, id: i64) -> AppResult<Option<LibraryFile>> {
+    let sql = format!("{FILE_SELECT} WHERE lf.id = ?1");
+    let row = sqlx::query(&sql).bind(id).fetch_optional(db).await?;
+    Ok(row.as_ref().map(file_from_row))
+}
+
+/// Insert or refresh a scanned file. A manual match (`match_kind = 'manual'`) is
+/// never disturbed; other columns are always refreshed from the parse.
+pub async fn upsert_library_file(
+    db: &Db,
+    folder_id: i64,
+    f: &ScannedFile,
+) -> AppResult<()> {
+    let path = f.path.to_string_lossy();
+    sqlx::query(
+        "INSERT INTO library_file (
+            folder_id, path, file_name, size_bytes, modified_at,
+            parsed_title, parsed_episode, parsed_season, parsed_year, resolution, release_group,
+            scanned_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
+         ON CONFLICT(path) DO UPDATE SET
+            folder_id = excluded.folder_id,
+            file_name = excluded.file_name,
+            size_bytes = excluded.size_bytes,
+            modified_at = excluded.modified_at,
+            parsed_title = excluded.parsed_title,
+            parsed_episode = excluded.parsed_episode,
+            parsed_season = excluded.parsed_season,
+            parsed_year = excluded.parsed_year,
+            resolution = excluded.resolution,
+            release_group = excluded.release_group,
+            scanned_at = excluded.scanned_at",
+    )
+    .bind(folder_id)
+    .bind(path.as_ref())
+    .bind(&f.file_name)
+    .bind(f.size_bytes)
+    .bind(&f.modified_at)
+    .bind(&f.title)
+    .bind(f.episode)
+    .bind(f.season)
+    .bind(f.year)
+    .bind(&f.resolution)
+    .bind(&f.release_group)
+    .bind(now())
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+/// Drop rows for `folder_id` whose path is no longer on disk. Returns how many.
+pub async fn prune_missing_files(
+    db: &Db,
+    folder_id: i64,
+    present: &[String],
+) -> AppResult<u64> {
+    let keep = serde_json::to_string(present)?;
+    let res = sqlx::query(
+        "DELETE FROM library_file
+         WHERE folder_id = ?1 AND path NOT IN (SELECT value FROM json_each(?2))",
+    )
+    .bind(folder_id)
+    .bind(keep)
+    .execute(db)
+    .await?;
+    Ok(res.rows_affected())
+}
+
+/// Files still awaiting a match: `(id, parsed_title, parsed_season, parsed_year)`.
+pub async fn files_needing_match(
+    db: &Db,
+) -> AppResult<Vec<(i64, Option<String>, Option<i64>, Option<i64>)>> {
+    let rows = sqlx::query(
+        "SELECT id, parsed_title, parsed_season, parsed_year FROM library_file
+         WHERE media_id IS NULL AND match_kind IS NOT 'manual'",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (
+                r.get::<i64, _>("id"),
+                r.get::<Option<String>, _>("parsed_title"),
+                r.get::<Option<i64>, _>("parsed_season"),
+                r.get::<Option<i64>, _>("parsed_year"),
+            )
+        })
+        .collect())
+}
+
+pub async fn set_file_match(
+    db: &Db,
+    file_id: i64,
+    service: ServiceKind,
+    media_id: i64,
+    kind: &str,
+    score: Option<f64>,
+) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE library_file
+         SET service = ?2, media_id = ?3, match_kind = ?4, match_score = ?5
+         WHERE id = ?1",
+    )
+    .bind(file_id)
+    .bind(service.as_str())
+    .bind(media_id)
+    .bind(kind)
+    .bind(score)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+pub async fn clear_file_match(db: &Db, file_id: i64) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE library_file
+         SET service = NULL, media_id = NULL, match_kind = NULL, match_score = NULL
+         WHERE id = ?1",
+    )
+    .bind(file_id)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+/// Build the matcher index from everything in the media cache.
+pub async fn media_match_index(db: &Db) -> AppResult<Vec<IndexEntry>> {
+    let rows = sqlx::query(
+        "SELECT service, id, title_romaji, title_english, title_native, synonyms_json, season_year
+         FROM media_cache",
+    )
+    .fetch_all(db)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            let service: String = r.get("service");
+            let mut titles: Vec<String> = ["title_romaji", "title_english", "title_native"]
+                .iter()
+                .filter_map(|c| r.get::<Option<String>, _>(*c))
+                .collect();
+            if let Some(syn) = r.get::<Option<String>, _>("synonyms_json") {
+                if let Ok(list) = serde_json::from_str::<Vec<String>>(&syn) {
+                    titles.extend(list);
+                }
+            }
+            IndexEntry::new(
+                service.parse().unwrap_or(ServiceKind::AniList),
+                r.get("id"),
+                r.get::<Option<i64>, _>("season_year").map(|y| y as i32),
+                titles,
+            )
+        })
+        .collect())
+}
+
+/// Episodes present on disk per matched media.
+pub async fn owned_media(db: &Db) -> AppResult<Vec<OwnedMedia>> {
+    let rows = sqlx::query(
+        "SELECT media_id, parsed_episode FROM library_file
+         WHERE media_id IS NOT NULL AND parsed_episode IS NOT NULL
+         ORDER BY media_id, parsed_episode",
+    )
+    .fetch_all(db)
+    .await?;
+
+    let mut out: Vec<OwnedMedia> = Vec::new();
+    for r in &rows {
+        let media_id: i64 = r.get("media_id");
+        let ep: i64 = r.get("parsed_episode");
+        match out.last_mut() {
+            Some(last) if last.media_id == media_id => {
+                if !last.episodes.contains(&ep) {
+                    last.episodes.push(ep);
+                }
+            }
+            _ => out.push(OwnedMedia {
+                media_id,
+                episodes: vec![ep],
+            }),
+        }
+    }
+    Ok(out)
 }

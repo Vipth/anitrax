@@ -7,6 +7,7 @@ use tauri::State;
 use crate::auth;
 use crate::db::repo::{self, Account};
 use crate::error::AppResult;
+use crate::library::{LibraryFile, LibraryFolder, OwnedMedia, ScanReport};
 use crate::state::AppState;
 use crate::sync::{self, SyncReport};
 use crate::tracker::anilist::BudgetSnapshot;
@@ -163,4 +164,65 @@ pub async fn last_sync(
     service: Option<String>,
 ) -> AppResult<Option<String>> {
     sync::last_sync(&state, service.as_deref()).await
+}
+
+// --------------------------------------------------------------------------- //
+// Local library (M3)
+// --------------------------------------------------------------------------- //
+
+#[tauri::command]
+pub async fn library_folders(state: State<'_, AppState>) -> AppResult<Vec<LibraryFolder>> {
+    sync::library_folders(&state).await
+}
+
+#[tauri::command]
+pub async fn add_library_folder(
+    state: State<'_, AppState>,
+    path: String,
+) -> AppResult<LibraryFolder> {
+    sync::add_library_folder(&state, path.trim()).await
+}
+
+#[tauri::command]
+pub async fn remove_library_folder(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    sync::remove_library_folder(&state, id).await
+}
+
+#[tauri::command]
+pub async fn set_library_folder_enabled(
+    state: State<'_, AppState>,
+    id: i64,
+    enabled: bool,
+) -> AppResult<()> {
+    sync::set_library_folder_enabled(&state, id, enabled).await
+}
+
+#[tauri::command]
+pub async fn scan_library(state: State<'_, AppState>) -> AppResult<ScanReport> {
+    sync::scan_library(&state).await
+}
+
+#[tauri::command]
+pub async fn library_files(state: State<'_, AppState>) -> AppResult<Vec<LibraryFile>> {
+    sync::library_files(&state).await
+}
+
+#[tauri::command]
+pub async fn library_owned(state: State<'_, AppState>) -> AppResult<Vec<OwnedMedia>> {
+    sync::owned_media(&state).await
+}
+
+#[tauri::command]
+pub async fn link_library_file(
+    state: State<'_, AppState>,
+    file_id: i64,
+    service: Option<String>,
+    media_id: i64,
+) -> AppResult<()> {
+    sync::link_library_file(&state, file_id, service.as_deref(), media_id).await
+}
+
+#[tauri::command]
+pub async fn unlink_library_file(state: State<'_, AppState>, file_id: i64) -> AppResult<()> {
+    sync::unlink_library_file(&state, file_id).await
 }

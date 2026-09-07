@@ -37,6 +37,11 @@ keyring = { version = "4.2.0", features = [
 ] }
 async-trait = "0.1.92"
 thiserror = "2.0.20"
+walkdir = "2.5"
+notify = "8"
+notify-debouncer-full = "0.5"
+# Rapptz's pure-Rust port of anitomy (not on crates.io). Pinned by rev.
+anitomy = { git = "https://github.com/Rapptz/anitomy-rs", rev = "c5271be1d9fe71a49e93e98ac3f982b38e6e27b6" }
 anyhow = "1.0.104"
 chrono = { version = "0.4.45", features = ["serde"] }
 futures = "0.3.34"

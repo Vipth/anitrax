@@ -2,6 +2,7 @@ mod auth;
 mod commands;
 mod db;
 mod error;
+mod library;
 mod state;
 mod sync;
 mod tracker;
@@ -47,6 +48,15 @@ pub fn run() {
             commands::search_anime,
             commands::budget_snapshot,
             commands::last_sync,
+            commands::library_folders,
+            commands::add_library_folder,
+            commands::remove_library_folder,
+            commands::set_library_folder_enabled,
+            commands::scan_library,
+            commands::library_files,
+            commands::library_owned,
+            commands::link_library_file,
+            commands::unlink_library_file,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -157,6 +167,35 @@ pub fn run() {
                                 let _ = h.emit("entries-updated", ());
                             }
                             Err(e) => tracing::warn!(?e, "background sync error"),
+                        }
+                    }
+                });
+            }
+
+            // Local library: scan on launch, then keep it live with a
+            // filesystem watcher that triggers incremental rescans.
+            {
+                let h = handle.clone();
+                let s = state.clone();
+                tauri::async_runtime::spawn(async move {
+                    s.watcher.refresh(&s).await;
+                    match sync::scan_library(&s).await {
+                        Ok(r) if r.files_seen > 0 || r.files_removed > 0 => {
+                            let _ = h.emit("library-updated", ());
+                        }
+                        Ok(_) => {}
+                        Err(e) => tracing::warn!(?e, "launch library scan error"),
+                    }
+
+                    let Some(mut rx) = s.watcher.take_receiver() else {
+                        return;
+                    };
+                    while let Some(roots) = rx.recv().await {
+                        match sync::rescan_paths(&s, &roots).await {
+                            Ok(_) => {
+                                let _ = h.emit("library-updated", ());
+                            }
+                            Err(e) => tracing::warn!(?e, "watched-folder rescan error"),
                         }
                     }
                 });
