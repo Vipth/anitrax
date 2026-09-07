@@ -13,8 +13,9 @@
         );
         var t = (persisted.state && persisted.state.theme) || "system";
         var el = document.documentElement;
-        el.classList.remove("dark", "cappuccino", "cappuccino-dark");
-        if (t === "cappuccino" || t === "cappuccino-dark") {
+        var custom = ["cappuccino", "cappuccino-dark", "jade"];
+        el.classList.remove("dark", ...custom);
+        if (custom.indexOf(t) !== -1) {
           el.classList.add(t);
         } else if (
           t === "dark" ||

@@ -15,6 +15,7 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "dark", label: "Dark" },
   { value: "cappuccino", label: "Cappuccino" },
   { value: "cappuccino-dark", label: "Cappuccino Dark" },
+  { value: "jade", label: "Jade" },
 ];
 
 /** [background, primary] preview colours for each theme's swatch. */
@@ -24,6 +25,7 @@ const SWATCH: Record<Theme, [string, string]> = {
   dark: ["#141420", "#a78bfa"],
   cappuccino: ["#efe8e1", "#a15a30"],
   "cappuccino-dark": ["#1e1815", "#da9a62"],
+  jade: ["#111816", "#3cc88b"],
 };
 
 function Swatch({ theme, className }: { theme: Theme; className?: string }) {

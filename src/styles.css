@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *));
+@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -96,6 +96,31 @@
   --danger: 8 66% 64%;
 
   --ring: 28 62% 62%;
+}
+
+/* Jade — dark only. Polished jade-stone dark: near-black with a green cast,
+ * a bright cut-jade primary, mint ink. Status colours pull off the green
+ * (gold warning, coral danger) so nothing gets lost in the foliage. */
+.jade {
+  --background: 162 18% 8%;
+  --surface: 162 15% 11%;
+  --surface-raised: 160 14% 14%;
+  --border: 160 12% 22%;
+  --border-strong: 158 12% 31%;
+  --foreground: 150 14% 93%;
+  --muted: 155 9% 60%;
+  --muted-foreground: 152 12% 69%;
+
+  --primary: 154 56% 51%;
+  --primary-foreground: 160 40% 9%;
+  --accent: 160 28% 20%;
+  --accent-foreground: 152 48% 82%;
+
+  --success: 128 46% 55%;
+  --warning: 40 88% 62%;
+  --danger: 356 68% 64%;
+
+  --ring: 154 56% 51%;
 }
 
 @theme inline {
