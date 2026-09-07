@@ -277,6 +277,13 @@
     background-color: hsl(var(--primary) / 0.3);
   }
 
+  /* Tailwind v4's reset drops the pointer cursor on buttons — put it back. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
   /* Drop the clunky native number-input spinners — Arrow keys still step the
    * value, and the fields still validate as numbers. */
   input[type="number"] {
