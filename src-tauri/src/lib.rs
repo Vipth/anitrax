@@ -68,20 +68,30 @@ pub fn run() {
                         if !url.starts_with("animetracker://oauth/anilist") {
                             continue;
                         }
-                        if let Some(token) = auth::parse_anilist_redirect(&url) {
-                            let h = dl_handle.clone();
-                            let s = dl_state.clone();
-                            tauri::async_runtime::spawn(async move {
-                                match sync::connect_anilist(&s, &token).await {
-                                    Ok(_) => {
-                                        let _ = h.emit("auth-changed", "anilist");
-                                        let _ = h.emit("entries-updated", ());
+                        let h = dl_handle.clone();
+                        let s = dl_state.clone();
+                        match auth::parse_anilist_redirect(&url) {
+                            Some(token) => {
+                                tauri::async_runtime::spawn(async move {
+                                    match sync::connect_anilist(&s, &token).await {
+                                        Ok(_) => {
+                                            let _ = h.emit("auth-changed", "anilist");
+                                            let _ = h.emit("entries-updated", ());
+                                        }
+                                        Err(e) => {
+                                            let _ = h.emit("auth-error", &e);
+                                        }
                                     }
-                                    Err(e) => {
-                                        let _ = h.emit("auth-error", e.to_string());
-                                    }
-                                }
-                            });
+                                });
+                            }
+                            None => {
+                                let _ = h.emit(
+                                    "auth-error",
+                                    &error::AppError::other(
+                                        "The AniList redirect didn't contain an access token.",
+                                    ),
+                                );
+                            }
                         }
                     }
                 });

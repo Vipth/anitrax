@@ -65,7 +65,7 @@ function RootLayout() {
       listen<string>("auth-changed", () =>
         toast.success("Account connected", "Your list is syncing now."),
       ),
-      listen<string>("auth-error", (e) =>
+      listen<unknown>("auth-error", (e) =>
         toast.error("Sign-in failed", errorMessage(e.payload)),
       ),
     ];
