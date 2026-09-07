@@ -7,6 +7,7 @@ export type Theme =
   | "dark"
   | "jade"
   | "nord"
+  | "kanagawa"
   | "catppuccin-latte"
   | "catppuccin-frappe"
   | "catppuccin-macchiato"
@@ -17,6 +18,7 @@ export type Theme =
 export const CUSTOM_THEMES = [
   "jade",
   "nord",
+  "kanagawa",
   "catppuccin-latte",
   "catppuccin-frappe",
   "catppuccin-macchiato",

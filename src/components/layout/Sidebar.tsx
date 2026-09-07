@@ -19,6 +19,8 @@ const NAV = [
 
 export function Sidebar() {
   const openHelp = useUi((s) => s.setHelpOpen);
+  const themeMenuOpen = useUi((s) => s.themeMenuOpen);
+  const setThemeMenuOpen = useUi((s) => s.setThemeMenuOpen);
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-4 py-4">
@@ -63,7 +65,11 @@ export function Sidebar() {
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-muted-foreground">Theme</span>
-          <ThemeSelect variant="compact" />
+          <ThemeSelect
+            variant="compact"
+            open={themeMenuOpen}
+            onOpenChange={setThemeMenuOpen}
+          />
         </div>
       </div>
     </aside>

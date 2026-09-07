@@ -20,6 +20,7 @@ const BASE_THEMES: { value: Theme; label: string }[] = [
 const PALETTE_THEMES: { value: Theme; label: string }[] = [
   { value: "jade", label: "Jade" },
   { value: "nord", label: "Nord" },
+  { value: "kanagawa", label: "Kanagawa" },
   { value: "catppuccin-latte", label: "Catppuccin Latte" },
   { value: "catppuccin-frappe", label: "Catppuccin Frappé" },
   { value: "catppuccin-macchiato", label: "Catppuccin Macchiato" },
@@ -36,6 +37,7 @@ const SWATCH: Record<Theme, [string, string]> = {
   dark: ["#141420", "#a78bfa"],
   jade: ["#111816", "#3cc88b"],
   nord: ["#2e3440", "#88c0d0"],
+  kanagawa: ["#1f1f28", "#7e9cd8"],
   "catppuccin-latte": ["#e6e9ef", "#d20f39"],
   "catppuccin-frappe": ["#303446", "#e78284"],
   "catppuccin-macchiato": ["#24273a", "#ed8796"],
@@ -60,9 +62,14 @@ function Swatch({ theme, className }: { theme: Theme; className?: string }) {
 export function ThemeSelect({
   variant = "full",
   className,
+  open,
+  onOpenChange,
 }: {
   variant?: "full" | "compact";
   className?: string;
+  /** Optional controlled open state (used so the `T` hotkey can pop it open). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
@@ -70,6 +77,8 @@ export function ThemeSelect({
 
   return (
     <Select
+      open={open}
+      onOpenChange={onOpenChange}
       value={theme}
       onValueChange={(v) => {
         const t = v as Theme;

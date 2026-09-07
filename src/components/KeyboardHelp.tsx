@@ -27,6 +27,7 @@ const GROUPS: {
       { keys: ["1"], label: "Go to Library" },
       { keys: ["2"], label: "Go to Discover" },
       { keys: ["3"], label: "Go to Settings" },
+      { keys: ["T"], label: "Theme picker (↑↓ then ⏎)" },
       { keys: ["/"], label: "Focus search / filter" },
       { keys: ["Esc"], label: "Close dialog or panel" },
     ],

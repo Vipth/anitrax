@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *, .jade, .jade *, .nord, .nord *, .catppuccin-frappe, .catppuccin-frappe *, .catppuccin-macchiato, .catppuccin-macchiato *, .catppuccin-mocha, .catppuccin-mocha *));
+@custom-variant dark (&:where(.dark, .dark *, .jade, .jade *, .nord, .nord *, .kanagawa, .kanagawa *, .catppuccin-frappe, .catppuccin-frappe *, .catppuccin-macchiato, .catppuccin-macchiato *, .catppuccin-mocha, .catppuccin-mocha *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -146,6 +146,31 @@
   --danger: 350 65% 77%; /* Maroon */
 
   --ring: 343 81% 75%;
+}
+
+/* Kanagawa — dark only. rebelot's neovim palette after Hokusai's "Great Wave":
+ * warm sumi-ink greys, paper-white (fujiWhite) text, the crystal-blue wave as
+ * primary, muted carp-yellow / wave-red for status. */
+.kanagawa {
+  --background: 240 13% 14%; /* sumiInk3 */
+  --surface: 240 14% 10%; /* sumiInk0 */
+  --surface-raised: 240 13% 19%; /* sumiInk4 */
+  --border: 240 13% 24%; /* sumiInk5 */
+  --border-strong: 240 13% 38%; /* sumiInk6 */
+  --foreground: 51 33% 80%; /* fujiWhite */
+  --muted: 48 12% 58%;
+  --muted-foreground: 51 33% 68%; /* oldWhite */
+
+  --primary: 220 54% 67%; /* crystalBlue */
+  --primary-foreground: 240 14% 10%; /* sumiInk0 */
+  --accent: 205 39% 29%; /* waveBlue2 */
+  --accent-foreground: 198 45% 80%;
+
+  --success: 87 37% 58%; /* springGreen */
+  --warning: 39 66% 71%; /* carpYellow */
+  --danger: 353 70% 65%; /* waveRed */
+
+  --ring: 220 54% 67%;
 }
 
 /* Jade — dark only. Polished jade-stone dark: near-black with a green cast,

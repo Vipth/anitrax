@@ -25,8 +25,10 @@ function RootLayout() {
   useBackendEvents();
   const theme = usePrefs((s) => s.theme);
   const navigate = useNavigate();
+  const helpOpen = useUi((s) => s.helpOpen);
   const toggleHelp = useUi((s) => s.toggleHelp);
   const setHelpOpen = useUi((s) => s.setHelpOpen);
+  const toggleThemeMenu = useUi((s) => s.toggleThemeMenu);
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
 
   useHotkeys(
@@ -35,19 +37,28 @@ function RootLayout() {
         e.preventDefault();
         toggleHelp();
       },
+      Escape: () => setHelpOpen(false),
+      // Everything below is suppressed while the help dialog is open.
+      t: (e) => {
+        if (helpOpen) return;
+        e.preventDefault();
+        toggleThemeMenu();
+      },
       "1": (e) => {
+        if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/" });
       },
       "2": (e) => {
+        if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/discover" });
       },
       "3": (e) => {
+        if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/settings" });
       },
-      Escape: () => setHelpOpen(false),
     },
     { allowInInput: ["Escape"] },
   );
