@@ -1,9 +1,7 @@
-import { Fragment } from "react";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectSeparator,
   SelectTrigger,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -19,6 +17,7 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "nord", label: "Nord" },
   { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
 ];
+THEMES.sort((a, b) => a.label.localeCompare(b.label));
 
 /** [background, primary] preview colours for each theme's swatch. */
 const SWATCH: Record<Theme, [string, string]> = {
@@ -84,16 +83,13 @@ export function ThemeSelect({
       </SelectTrigger>
 
       <SelectContent align={variant === "compact" ? "end" : "start"}>
-        {THEMES.map((t, i) => (
-          <Fragment key={t.value}>
-            {i === 3 && <SelectSeparator />}
-            <SelectItem value={t.value}>
-              <span className="flex items-center gap-2.5">
-                <Swatch theme={t.value} />
-                {t.label}
-              </span>
-            </SelectItem>
-          </Fragment>
+        {THEMES.map((t) => (
+          <SelectItem key={t.value} value={t.value}>
+            <span className="flex items-center gap-2.5">
+              <Swatch theme={t.value} />
+              {t.label}
+            </span>
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
