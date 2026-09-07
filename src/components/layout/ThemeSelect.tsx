@@ -11,9 +11,9 @@ import { usePrefs, applyTheme, type Theme } from "@/stores/prefs";
 
 /** Pinned to the top, in this order. */
 const BASE_THEMES: { value: Theme; label: string }[] = [
-  { value: "system", label: "System" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
 ];
 
 /** Standalone palettes — sorted alphabetically, so new ones slot in on their own. */
