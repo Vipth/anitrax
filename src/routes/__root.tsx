@@ -2,16 +2,20 @@ import { useEffect } from "react";
 import {
   createRootRoute,
   Outlet,
+  useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import { CloudOff } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
+import { KeyboardHelp } from "@/components/KeyboardHelp";
 import { useBackendEvents, useBudget } from "@/lib/hooks";
+import { useHotkeys } from "@/lib/hotkeys";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
 import { usePrefs, applyTheme } from "@/stores/prefs";
+import { useUi } from "@/stores/ui";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -20,7 +24,21 @@ export const Route = createRootRoute({
 function RootLayout() {
   useBackendEvents();
   const theme = usePrefs((s) => s.theme);
+  const navigate = useNavigate();
+  const toggleHelp = useUi((s) => s.toggleHelp);
+  const setHelpOpen = useUi((s) => s.setHelpOpen);
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
+
+  useHotkeys(
+    {
+      "?": () => toggleHelp(),
+      "1": () => navigate({ to: "/" }),
+      "2": () => navigate({ to: "/discover" }),
+      "3": () => navigate({ to: "/settings" }),
+      Escape: () => setHelpOpen(false),
+    },
+    { allowInInput: ["Escape"] },
+  );
 
   useEffect(() => {
     applyTheme(theme);
@@ -55,6 +73,7 @@ function RootLayout() {
         <Outlet />
       </main>
       <Toaster />
+      <KeyboardHelp />
     </div>
   );
 }

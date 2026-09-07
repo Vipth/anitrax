@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownUp,
   LayoutGrid,
@@ -11,12 +11,21 @@ import { cn } from "@/lib/utils";
 import { Input, Segmented, Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaListRow } from "@/components/media/MediaCard";
-import { useLibrary, useLastSync, useSettings, useSyncNow } from "@/lib/hooks";
+import { EditEntrySheet } from "@/components/media/EditEntrySheet";
+import {
+  useEditEntry,
+  useLibrary,
+  useLastSync,
+  useSettings,
+  useSyncNow,
+} from "@/lib/hooks";
+import { useHotkeys } from "@/lib/hotkeys";
 import { usePrefs, type LibrarySort } from "@/stores/prefs";
 import { STATUS_LABEL, STATUS_ORDER, relativeTime } from "@/lib/format";
 import { filterEntries, sortEntries } from "@/lib/library";
 import { toast } from "@/stores/toast";
-import { errorMessage } from "@/lib/types";
+import { useUi } from "@/stores/ui";
+import { errorMessage, type MediaListEntry } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
   component: LibraryPage,
@@ -35,6 +44,8 @@ function LibraryPage() {
   const { data: entries, isLoading } = useLibrary();
   const { data: lastSync } = useLastSync();
   const sync = useSyncNow();
+  const edit = useEditEntry();
+  const navigate = useNavigate();
   const {
     layout,
     setLayout,
@@ -45,7 +56,15 @@ function LibraryPage() {
     statusTab,
     setStatusTab,
   } = usePrefs();
+  const openHelp = useUi((s) => s.setHelpOpen);
   const [filter, setFilter] = React.useState("");
+  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [kbActive, setKbActive] = React.useState(false);
+  const [editingEntry, setEditingEntry] = React.useState<MediaListEntry | null>(
+    null,
+  );
+  const filterRef = React.useRef<HTMLInputElement>(null);
+  const gridRef = React.useRef<HTMLDivElement>(null);
 
   const connected = (settings?.accounts.length ?? 0) > 0;
 
@@ -60,11 +79,101 @@ function LibraryPage() {
     return sortEntries(filterEntries(list, filter), sort, sortDir);
   }, [entries, statusTab, filter, sort, sortDir]);
 
+  // Keep the selection valid as the visible set changes.
+  React.useEffect(() => {
+    if (visible.length === 0) {
+      setSelectedId(null);
+    } else if (!visible.some((e) => e.media.id.id === selectedId)) {
+      setSelectedId(visible[0].media.id.id);
+    }
+  }, [visible, selectedId]);
+
+  const selectedIndex = visible.findIndex((e) => e.media.id.id === selectedId);
+  const selectedEntry = selectedIndex >= 0 ? visible[selectedIndex] : null;
+
+  const selectAt = React.useCallback(
+    (index: number) => {
+      if (visible.length === 0) return;
+      setKbActive(true);
+      const clamped = Math.max(0, Math.min(visible.length - 1, index));
+      const id = visible[clamped].media.id.id;
+      setSelectedId(id);
+      requestAnimationFrame(() => {
+        gridRef.current
+          ?.querySelector(`[data-entry-id="${id}"]`)
+          ?.scrollIntoView({ block: "nearest" });
+      });
+    },
+    [visible],
+  );
+
+  const columns = () => {
+    if (layout === "list" || !gridRef.current) return 1;
+    const cols = getComputedStyle(gridRef.current).gridTemplateColumns;
+    return Math.max(1, cols.split(" ").filter(Boolean).length);
+  };
+
+  const bumpSelected = (delta: number) => {
+    if (!selectedEntry) return;
+    const total = selectedEntry.media.episodes;
+    const next = Math.max(0, selectedEntry.progress + delta);
+    if (total != null && next > total) return;
+    edit.mutate({
+      mediaId: selectedEntry.media.id.id,
+      remoteId: selectedEntry.remoteId,
+      progress: next,
+      status:
+        total != null && next >= total && selectedEntry.status === "CURRENT"
+          ? "COMPLETED"
+          : undefined,
+    });
+  };
+
+  const cycleTab = (delta: number) => {
+    const i = STATUS_ORDER.indexOf(statusTab);
+    const next = (i + delta + STATUS_ORDER.length) % STATUS_ORDER.length;
+    setStatusTab(STATUS_ORDER[next]);
+  };
+
   const doSync = () =>
     sync.mutate(undefined, {
-      onSuccess: (r) => toast.success("Synced", `${r.entries} entries from AniList.`),
+      onSuccess: (r) =>
+        toast.success("Synced", `${r.entries} entries from AniList.`),
       onError: (e) => toast.error("Sync failed", errorMessage(e)),
     });
+
+  useHotkeys(
+    {
+      "/": (e) => {
+        e.preventDefault();
+        filterRef.current?.focus();
+        filterRef.current?.select();
+      },
+      j: () => selectAt(selectedIndex + columns()),
+      ArrowDown: () => selectAt(selectedIndex + columns()),
+      k: () => selectAt(selectedIndex - columns()),
+      ArrowUp: () => selectAt(selectedIndex - columns()),
+      h: () => selectAt(selectedIndex - 1),
+      ArrowLeft: () => selectAt(selectedIndex - 1),
+      l: () => selectAt(selectedIndex + 1),
+      ArrowRight: () => selectAt(selectedIndex + 1),
+      Enter: () => {
+        if (selectedEntry)
+          navigate({
+            to: "/media/$mediaId",
+            params: { mediaId: String(selectedEntry.media.id.id) },
+          });
+      },
+      e: () => selectedEntry && setEditingEntry(selectedEntry),
+      "+": () => bumpSelected(1),
+      "=": () => bumpSelected(1),
+      "-": () => bumpSelected(-1),
+      "[": () => cycleTab(-1),
+      "]": () => cycleTab(1),
+      r: () => !sync.isPending && doSync(),
+    },
+    { enabled: connected && !editingEntry },
+  );
 
   if (!connected && !isLoading) {
     return (
@@ -86,15 +195,23 @@ function LibraryPage() {
         <div>
           <h1 className="text-lg font-semibold">Library</h1>
           <p className="text-xs text-muted-foreground">
-            Last synced {relativeTime(lastSync)}
+            Last synced {relativeTime(lastSync)} ·{" "}
+            <button
+              onClick={() => openHelp(true)}
+              className="underline decoration-dotted hover:text-foreground"
+            >
+              press ? for shortcuts
+            </button>
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={filterRef}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && filterRef.current?.blur()}
               placeholder="Filter…"
               className="h-8 w-44 pl-8"
             />
@@ -180,17 +297,38 @@ function LibraryPage() {
           }
         />
       ) : layout === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-6">
+        <div
+          ref={gridRef}
+          className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-6"
+        >
           {visible.map((e) => (
-            <MediaCard key={e.media.id.id} entry={e} />
+            <MediaCard
+              key={e.media.id.id}
+              entry={e}
+              selected={kbActive && e.media.id.id === selectedId}
+              onEdit={setEditingEntry}
+            />
           ))}
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div ref={gridRef} className="space-y-1.5">
           {visible.map((e) => (
-            <MediaListRow key={e.media.id.id} entry={e} />
+            <MediaListRow
+              key={e.media.id.id}
+              entry={e}
+              selected={kbActive && e.media.id.id === selectedId}
+              onEdit={setEditingEntry}
+            />
           ))}
         </div>
+      )}
+
+      {editingEntry && (
+        <EditEntrySheet
+          entry={editingEntry}
+          open={!!editingEntry}
+          onOpenChange={(o) => !o && setEditingEntry(null)}
+        />
       )}
     </div>
   );

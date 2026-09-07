@@ -7,6 +7,7 @@ import { qk } from "@/lib/query";
 import { Input, Skeleton } from "@/components/ui/primitives";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { useAddEntry, useLibrary } from "@/lib/hooks";
+import { useHotkeys } from "@/lib/hotkeys";
 import { FORMAT_LABEL, mediaTitle, stripHtml } from "@/lib/format";
 import { toast } from "@/stores/toast";
 import { errorKind, errorMessage } from "@/lib/types";
@@ -29,6 +30,15 @@ function DiscoverPage() {
   const [query, setQuery] = React.useState("");
   const debounced = useDebounced(query.trim(), 500);
   const enabled = debounced.length >= 3;
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
+  useHotkeys({
+    "/": (e) => {
+      e.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    },
+  });
 
   const { data, isFetching, error } = useQuery({
     queryKey: qk.search(debounced),
@@ -53,9 +63,11 @@ function DiscoverPage() {
       <div className="relative mb-6 max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          ref={searchRef}
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Escape" && searchRef.current?.blur()}
           placeholder="Search anime by title…"
           className="h-10 pl-9"
         />

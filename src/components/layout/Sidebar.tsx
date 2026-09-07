@@ -1,11 +1,10 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   Compass,
   Library,
   Settings as SettingsIcon,
   Sparkles,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ThemeSelect } from "./ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 
@@ -16,8 +15,6 @@ const NAV = [
 ] as const;
 
 export function Sidebar() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-4 py-4">
@@ -28,24 +25,22 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {NAV.map(({ to, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === to : pathname.startsWith(to);
-          return (
-            <Link
-              key={to}
-              to={to}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-border/40 hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4" />
-              {label}
-            </Link>
-          );
-        })}
+        {NAV.map(({ to, label, icon: Icon, exact }) => (
+          <Link
+            key={to}
+            to={to}
+            activeOptions={{ exact }}
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+            activeProps={{ className: "bg-primary/10 text-primary" }}
+            inactiveProps={{
+              className:
+                "text-muted-foreground hover:bg-border/40 hover:text-foreground",
+            }}
+          >
+            <Icon className="size-4" />
+            {label}
+          </Link>
+        ))}
       </nav>
 
       <div className="space-y-3 border-t border-border p-3">
