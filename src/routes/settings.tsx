@@ -80,6 +80,8 @@ function SettingsPage() {
   );
 }
 
+const PIN_REDIRECT = "https://anilist.co/api/v2/oauth/pin";
+
 function ConnectFlow({
   clientId,
   redirect,
@@ -90,7 +92,6 @@ function ConnectFlow({
   const qc = useQueryClient();
   const [id, setId] = React.useState(clientId);
   const [token, setToken] = React.useState("");
-  const [showManual, setShowManual] = React.useState(false);
 
   React.useEffect(() => setId(clientId), [clientId]);
 
@@ -122,10 +123,10 @@ function ConnectFlow({
 
   return (
     <div className="space-y-4">
-      <ol className="space-y-3 text-sm">
+      <ol className="space-y-4 text-sm">
         <li className="space-y-1.5">
-          <p className="font-medium">1. Register an API client</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="font-medium">1. Create an API client</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Open{" "}
             <button
               className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -133,11 +134,19 @@ function ConnectFlow({
             >
               anilist.co/settings/developer <ExternalLink className="size-3" />
             </button>{" "}
-            → “Create New Client”. Set the redirect URL to:
+            → “Create New Client”. Set its <strong>Redirect URL</strong> to one of
+            these:
           </p>
-          <code className="block rounded-md bg-surface px-2 py-1.5 text-xs">
-            {redirect}
-          </code>
+          <div className="space-y-1.5">
+            <RedirectOption
+              url={PIN_REDIRECT}
+              label="Easiest — AniList shows you a token to paste below"
+            />
+            <RedirectOption
+              url={redirect || "animetracker://oauth/anilist"}
+              label="Seamless — the app captures sign-in automatically"
+            />
+          </div>
         </li>
 
         <li className="space-y-1.5">
@@ -160,7 +169,7 @@ function ConnectFlow({
         </li>
 
         <li className="space-y-1.5">
-          <p className="font-medium">3. Sign in</p>
+          <p className="font-medium">3. Authorize</p>
           <Button
             size="sm"
             disabled={!clientId || startLogin.isPending}
@@ -168,32 +177,20 @@ function ConnectFlow({
           >
             Sign in with AniList
           </Button>
-          {!clientId && (
-            <p className="text-xs text-muted-foreground">
-              Save your client ID first.
-            </p>
-          )}
-        </li>
-      </ol>
-
-      <button
-        className="text-xs text-muted-foreground underline"
-        onClick={() => setShowManual((v) => !v)}
-      >
-        {showManual ? "Hide" : "Sign-in didn't redirect back?"}
-      </button>
-
-      {showManual && (
-        <div className="space-y-2 rounded-md border border-border bg-surface p-3">
           <p className="text-xs text-muted-foreground">
-            On the developer page you can also generate an access token directly
-            (“Auth Token”). Paste it here:
+            {!clientId
+              ? "Save your client ID first."
+              : "Approve in your browser. With the custom-scheme redirect the app connects itself; with the pin redirect, copy the token AniList shows you."}
           </p>
+        </li>
+
+        <li className="space-y-1.5">
+          <p className="font-medium">4. Paste the token (pin redirect only)</p>
           <div className="flex gap-2">
             <Input
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Access token"
+              placeholder="Access token from AniList"
               type="password"
             />
             <Button
@@ -204,9 +201,28 @@ function ConnectFlow({
               Connect
             </Button>
           </div>
-        </div>
-      )}
+        </li>
+      </ol>
     </div>
+  );
+}
+
+function RedirectOption({ url, label }: { url: string; label: string }) {
+  const [copied, setCopied] = React.useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(url).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="block w-full rounded-md border border-border bg-surface px-2 py-1.5 text-left transition-colors hover:border-primary"
+    >
+      <code className="text-xs">{url}</code>
+      <span className="mt-0.5 block text-[11px] text-muted-foreground">
+        {copied ? "Copied!" : label}
+      </span>
+    </button>
   );
 }
 

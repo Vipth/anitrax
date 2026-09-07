@@ -1,9 +1,13 @@
 //! OAuth + secure token storage.
 //!
-//! AniList desktop auth uses the **implicit grant**: we open the authorize URL
-//! in the system browser, the user approves, and AniList redirects to
-//! `animetracker://oauth/anilist#access_token=…`. The deep-link plugin hands us
-//! that full URL (fragment included) and we pull the token out.
+//! AniList desktop auth uses the **implicit grant**. We open
+//! `https://anilist.co/api/v2/oauth/authorize?client_id=…&response_type=token`
+//! (no `redirect_uri` — AniList uses the URL registered on the client) and the
+//! user approves. Then, depending on the client's registered redirect URL:
+//!   * `animetracker://oauth/anilist` — the deep-link plugin hands us the full
+//!     redirect URL and we pull `access_token` out of the fragment; or
+//!   * `https://anilist.co/api/v2/oauth/pin` — AniList shows the token on a page
+//!     and the user pastes it into Settings.
 //!
 //! Tokens never touch the SQLite file — they live in the OS keychain.
 
@@ -47,11 +51,14 @@ pub fn delete_token(service: ServiceKind) -> AppResult<()> {
 }
 
 /// Build the AniList authorize URL for the implicit grant.
+///
+/// Note: AniList's implicit grant does **not** accept a `redirect_uri` parameter
+/// — passing one yields `unsupported_grant_type`. The redirect target is
+/// whatever is registered on the client in AniList's developer settings.
 pub fn anilist_authorize_url(client_id: &str) -> String {
     format!(
-        "https://anilist.co/api/v2/oauth/authorize?client_id={}&redirect_uri={}&response_type=token",
+        "https://anilist.co/api/v2/oauth/authorize?client_id={}&response_type=token",
         urlencoding(client_id),
-        urlencoding(ANILIST_REDIRECT),
     )
 }
 
@@ -113,5 +120,25 @@ mod tests {
     fn missing_token_is_none() {
         let url = "animetracker://oauth/anilist#error=access_denied";
         assert_eq!(parse_anilist_redirect(url), None);
+    }
+
+    #[test]
+    fn authorize_url_has_no_redirect_uri() {
+        // AniList's implicit grant rejects a redirect_uri param.
+        let url = anilist_authorize_url("50498");
+        assert_eq!(
+            url,
+            "https://anilist.co/api/v2/oauth/authorize?client_id=50498&response_type=token"
+        );
+        assert!(!url.contains("redirect_uri"));
+    }
+
+    #[test]
+    fn parses_token_from_pin_redirect_fragment() {
+        let url = "https://anilist.co/api/v2/oauth/pin#access_token=eyJ0eXAi.abc.def&token_type=Bearer";
+        assert_eq!(
+            parse_anilist_redirect(url).as_deref(),
+            Some("eyJ0eXAi.abc.def")
+        );
     }
 }
