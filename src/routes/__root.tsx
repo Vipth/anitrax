@@ -31,10 +31,22 @@ function RootLayout() {
 
   useHotkeys(
     {
-      "?": () => toggleHelp(),
-      "1": () => navigate({ to: "/" }),
-      "2": () => navigate({ to: "/discover" }),
-      "3": () => navigate({ to: "/settings" }),
+      "?": (e) => {
+        e.preventDefault();
+        toggleHelp();
+      },
+      "1": (e) => {
+        e.preventDefault();
+        navigate({ to: "/" });
+      },
+      "2": (e) => {
+        e.preventDefault();
+        navigate({ to: "/discover" });
+      },
+      "3": (e) => {
+        e.preventDefault();
+        navigate({ to: "/settings" });
+      },
       Escape: () => setHelpOpen(false),
     },
     { allowInInput: ["Escape"] },

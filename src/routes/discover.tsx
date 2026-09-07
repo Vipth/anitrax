@@ -64,11 +64,10 @@ function DiscoverPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={searchRef}
-          autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && searchRef.current?.blur()}
-          placeholder="Search anime by title…"
+          placeholder="Search anime by title…  ( press / )"
           className="h-10 pl-9"
         />
       </div>
