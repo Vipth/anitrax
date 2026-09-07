@@ -6,7 +6,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "./ThemeToggle";
+import { ThemeSelect } from "./ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 
 const NAV = [
@@ -50,9 +50,9 @@ export function Sidebar() {
 
       <div className="space-y-3 border-t border-border p-3">
         <RequestBudgetMeter />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-muted-foreground">Theme</span>
-          <ThemeToggle />
+          <ThemeSelect className="min-w-0 flex-1" />
         </div>
       </div>
     </aside>

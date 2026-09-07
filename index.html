@@ -13,9 +13,9 @@
         );
         var t = (persisted.state && persisted.state.theme) || "system";
         var el = document.documentElement;
-        el.classList.remove("dark", "cappuccino");
-        if (t === "cappuccino") {
-          el.classList.add("cappuccino");
+        el.classList.remove("dark", "cappuccino", "cappuccino-dark");
+        if (t === "cappuccino" || t === "cappuccino-dark") {
+          el.classList.add(t);
         } else if (
           t === "dark" ||
           (t === "system" &&

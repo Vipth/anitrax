@@ -2,7 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ListStatus } from "@/lib/types";
 
-export type Theme = "light" | "dark" | "cappuccino" | "system";
+export type Theme =
+  | "light"
+  | "dark"
+  | "cappuccino"
+  | "cappuccino-dark"
+  | "system";
 export type LibraryLayout = "grid" | "list";
 export type LibrarySort =
   | "title"
@@ -47,9 +52,9 @@ export const usePrefs = create<PrefsState>()(
  * bootstrap script in index.html. */
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  root.classList.remove("dark", "cappuccino");
-  if (theme === "cappuccino") {
-    root.classList.add("cappuccino");
+  root.classList.remove("dark", "cappuccino", "cappuccino-dark");
+  if (theme === "cappuccino" || theme === "cappuccino-dark") {
+    root.classList.add(theme);
     return;
   }
   const dark =

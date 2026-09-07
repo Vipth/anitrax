@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -72,6 +72,30 @@
   --danger: 8 58% 46%;
 
   --ring: 22 54% 41%;
+}
+
+/* Cappuccino Dark — the same roast after hours: espresso-black grounds,
+ * cream ink, a brighter caramel crema so accents still lift off the dark. */
+.cappuccino-dark {
+  --background: 22 16% 10%;
+  --surface: 24 15% 13%;
+  --surface-raised: 24 14% 16%;
+  --border: 24 12% 24%;
+  --border-strong: 24 11% 32%;
+  --foreground: 32 28% 90%;
+  --muted: 28 12% 62%;
+  --muted-foreground: 30 15% 70%;
+
+  --primary: 28 62% 62%;
+  --primary-foreground: 24 30% 12%;
+  --accent: 26 28% 24%;
+  --accent-foreground: 30 55% 82%;
+
+  --success: 140 34% 56%;
+  --warning: 36 78% 62%;
+  --danger: 8 66% 64%;
+
+  --ring: 28 62% 62%;
 }
 
 @theme inline {

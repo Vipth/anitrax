@@ -7,7 +7,7 @@ import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Button } from "@/components/ui/button";
 import { Card, Input } from "@/components/ui/primitives";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 import { useSettings } from "@/lib/hooks";
 import { toast } from "@/stores/toast";
@@ -63,7 +63,7 @@ function SettingsPage() {
       <Section title="Appearance">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Theme</span>
-          <ThemeToggle />
+          <ThemeSelect />
         </div>
       </Section>
 
