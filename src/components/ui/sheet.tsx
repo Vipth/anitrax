@@ -17,10 +17,10 @@ export function SheetContent({
 }) {
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+      <Dialog.Overlay className="anim-overlay fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px]" />
       <Dialog.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex w-full max-w-md flex-col bg-surface-raised shadow-xl outline-none",
+          "anim-sheet-right fixed inset-y-0 z-50 flex w-full max-w-md flex-col bg-surface-raised shadow-xl outline-none",
           side === "right"
             ? "right-0 border-l border-border"
             : "left-0 border-r border-border",

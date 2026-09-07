@@ -52,7 +52,7 @@ export function Sidebar() {
         <RequestBudgetMeter />
         <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] text-muted-foreground">Theme</span>
-          <ThemeSelect className="min-w-0 flex-1" />
+          <ThemeSelect variant="compact" />
         </div>
       </div>
     </aside>

@@ -1,3 +1,12 @@
+import { Fragment } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { usePrefs, applyTheme, type Theme } from "@/stores/prefs";
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -8,29 +17,79 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "cappuccino-dark", label: "Cappuccino Dark" },
 ];
 
-export function ThemeSelect({ className }: { className?: string }) {
+/** [background, primary] preview colours for each theme's swatch. */
+const SWATCH: Record<Theme, [string, string]> = {
+  system: ["#f4f4f6", "#17171f"],
+  light: ["#ffffff", "#7c5cff"],
+  dark: ["#141420", "#a78bfa"],
+  cappuccino: ["#efe8e1", "#a15a30"],
+  "cappuccino-dark": ["#1e1815", "#da9a62"],
+};
+
+function Swatch({ theme, className }: { theme: Theme; className?: string }) {
+  const [bg, primary] = SWATCH[theme];
+  return (
+    <span
+      className={cn(
+        "size-4 shrink-0 rounded-[5px] shadow-sm ring-1 ring-inset ring-black/15",
+        className,
+      )}
+      style={{
+        background: `linear-gradient(135deg, ${bg} 0 52%, ${primary} 52% 100%)`,
+      }}
+    />
+  );
+}
+
+export function ThemeSelect({
+  variant = "full",
+  className,
+}: {
+  variant?: "full" | "compact";
+  className?: string;
+}) {
   const theme = usePrefs((s) => s.theme);
   const setTheme = usePrefs((s) => s.setTheme);
+  const current = THEMES.find((t) => t.value === theme) ?? THEMES[0];
 
   return (
-    <select
-      aria-label="Theme"
+    <Select
       value={theme}
-      onChange={(e) => {
-        const t = e.target.value as Theme;
+      onValueChange={(v) => {
+        const t = v as Theme;
         setTheme(t);
         applyTheme(t);
       }}
-      className={
-        "h-8 rounded-md border border-border bg-surface px-2 text-xs outline-none focus:border-primary " +
-        (className ?? "")
-      }
     >
-      {THEMES.map((t) => (
-        <option key={t.value} value={t.value}>
-          {t.label}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger
+        aria-label="Theme"
+        title={variant === "compact" ? `Theme: ${current.label}` : undefined}
+        className={cn(
+          variant === "compact" ? "w-auto px-2" : "min-w-[12rem]",
+          className,
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Swatch theme={theme} />
+          {variant === "full" && (
+            <span className="truncate">{current.label}</span>
+          )}
+        </span>
+      </SelectTrigger>
+
+      <SelectContent align={variant === "compact" ? "end" : "start"}>
+        {THEMES.map((t, i) => (
+          <Fragment key={t.value}>
+            {i === 3 && <SelectSeparator />}
+            <SelectItem value={t.value}>
+              <span className="flex items-center gap-2.5">
+                <Swatch theme={t.value} />
+                {t.label}
+              </span>
+            </SelectItem>
+          </Fragment>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
