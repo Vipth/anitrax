@@ -17,6 +17,7 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: "cappuccino-dark", label: "Cappuccino Dark" },
   { value: "jade", label: "Jade" },
   { value: "nord", label: "Nord" },
+  { value: "catppuccin-mocha", label: "Catppuccin Mocha" },
 ];
 
 /** [background, primary] preview colours for each theme's swatch. */
@@ -28,6 +29,7 @@ const SWATCH: Record<Theme, [string, string]> = {
   "cappuccino-dark": ["#1e1815", "#da9a62"],
   jade: ["#111816", "#3cc88b"],
   nord: ["#2e3440", "#88c0d0"],
+  "catppuccin-mocha": ["#1e1e2e", "#f38ba8"],
 };
 
 function Swatch({ theme, className }: { theme: Theme; className?: string }) {

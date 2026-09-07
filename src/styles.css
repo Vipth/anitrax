@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *, .nord, .nord *));
+@custom-variant dark (&:where(.dark, .dark *, .cappuccino-dark, .cappuccino-dark *, .jade, .jade *, .nord, .nord *, .catppuccin-mocha, .catppuccin-mocha *));
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -146,6 +146,32 @@
   --danger: 354 42% 56%;
 
   --ring: 193 43% 67%;
+}
+
+/* Catppuccin Mocha — the popular pastel palette (catppuccin.com), Red accent.
+ * Base/Mantle/Surface greys under lavender-blue text, the Red (#f38ba8) as
+ * primary; Peach for warning and Maroon for danger so they stay distinct
+ * from the red primary. */
+.catppuccin-mocha {
+  --background: 240 21% 15%; /* Base   #1e1e2e */
+  --surface: 240 21% 12%; /* Mantle #181825 */
+  --surface-raised: 237 16% 23%; /* Surface0 #313244 */
+  --border: 234 13% 31%; /* Surface1 #45475a */
+  --border-strong: 233 12% 39%; /* Surface2 #585b70 */
+  --foreground: 226 64% 88%; /* Text     #cdd6f4 */
+  --muted: 228 24% 72%; /* Subtext0 #a6adc8 */
+  --muted-foreground: 227 35% 80%; /* Subtext1 #bac2de */
+
+  --primary: 343 81% 75%; /* Red    #f38ba8 */
+  --primary-foreground: 240 23% 9%; /* Crust  #11111b */
+  --accent: 343 22% 24%;
+  --accent-foreground: 343 55% 86%;
+
+  --success: 115 54% 76%; /* Green  #a6e3a1 */
+  --warning: 23 92% 76%; /* Peach  #fab387 */
+  --danger: 350 65% 77%; /* Maroon #eba0ac */
+
+  --ring: 343 81% 75%;
 }
 
 @theme inline {

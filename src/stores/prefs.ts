@@ -9,6 +9,7 @@ export type Theme =
   | "cappuccino-dark"
   | "jade"
   | "nord"
+  | "catppuccin-mocha"
   | "system";
 
 /** Themes that are their own standalone palette (a class on <html>). */
@@ -17,6 +18,7 @@ export const CUSTOM_THEMES = [
   "cappuccino-dark",
   "jade",
   "nord",
+  "catppuccin-mocha",
 ] as const;
 export type LibraryLayout = "grid" | "list";
 export type LibrarySort =
