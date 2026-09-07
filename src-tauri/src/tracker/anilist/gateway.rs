@@ -49,6 +49,8 @@ pub struct BudgetSnapshot {
     /// Seconds until the queue un-parks (0 when running normally).
     pub parked_for_secs: u64,
     pub queue_depth: usize,
+    /// AniList has disabled its public API (its own outage, returns 403 to all).
+    pub service_down: bool,
 }
 
 #[derive(Default)]
@@ -57,6 +59,7 @@ struct Stats {
     api_remaining: Option<i64>,
     parked_until: Option<Instant>,
     queue_depth: usize,
+    service_down: bool,
 }
 
 impl Stats {
@@ -78,6 +81,7 @@ impl Stats {
                 .map(|t| t.saturating_duration_since(Instant::now()).as_secs())
                 .unwrap_or(0),
             queue_depth: self.queue_depth,
+            service_down: self.service_down,
         }
     }
 }
@@ -144,6 +148,15 @@ impl Worker {
                 s.queue_depth = s.queue_depth.saturating_sub(1);
             }
             let result = self.process(&job).await;
+            // Track AniList's own outage state for the UI.
+            {
+                let mut s = self.stats.lock().await;
+                match &result {
+                    Err(AppError::ServiceUnavailable { .. }) => s.service_down = true,
+                    Ok(_) => s.service_down = false,
+                    _ => {}
+                }
+            }
             let _ = job.respond.send(result);
         }
     }
@@ -303,19 +316,7 @@ async fn parse_graphql(resp: reqwest::Response) -> AppResult<Value> {
 
     if let Some(errors) = json.get("errors").and_then(|e| e.as_array()) {
         if !errors.is_empty() {
-            let msg = errors
-                .iter()
-                .filter_map(|e| e.get("message").and_then(|m| m.as_str()))
-                .collect::<Vec<_>>()
-                .join("; ");
-            return Err(AppError::Api {
-                service: "anilist".into(),
-                message: if msg.is_empty() {
-                    format!("{status}")
-                } else {
-                    msg
-                },
-            });
+            return Err(classify_graphql_errors(status.as_u16(), errors));
         }
     }
 
@@ -325,6 +326,43 @@ async fn parse_graphql(resp: reqwest::Response) -> AppResult<Value> {
             service: "anilist".into(),
             message: format!("response had no data field ({status})"),
         })
+}
+
+/// Turn a GraphQL `errors` array into the right [`AppError`].
+///
+/// AniList disables its public API during load incidents and returns a 403 with
+/// a "temporarily disabled" message to *every* client — that's a transient
+/// outage, not an API misuse error, so it gets its own variant.
+fn classify_graphql_errors(status: u16, errors: &[Value]) -> AppError {
+    let msg = errors
+        .iter()
+        .filter_map(|e| e.get("message").and_then(|m| m.as_str()))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let lower = msg.to_ascii_lowercase();
+
+    if lower.contains("temporarily disabled")
+        || lower.contains("api has been temporarily")
+        || (status == 403 && lower.contains("stability"))
+    {
+        return AppError::ServiceUnavailable {
+            service: "anilist".into(),
+            message: if msg.is_empty() {
+                "AniList has temporarily disabled its API.".into()
+            } else {
+                msg
+            },
+        };
+    }
+
+    AppError::Api {
+        service: "anilist".into(),
+        message: if msg.is_empty() {
+            status.to_string()
+        } else {
+            msg
+        },
+    }
 }
 
 fn truncate(s: &str, n: usize) -> String {
@@ -394,16 +432,25 @@ mod tests {
 
     #[test]
     fn graphql_errors_become_api_errors() {
-        // parse_graphql is async; exercise the JSON-shape logic it relies on.
-        let body = serde_json::json!({
-            "errors": [{ "message": "Invalid token" }],
-            "data": null,
-        });
-        let errs = body.get("errors").and_then(|e| e.as_array()).unwrap();
-        assert!(!errs.is_empty());
-        assert_eq!(
-            errs[0].get("message").and_then(|m| m.as_str()),
-            Some("Invalid token")
-        );
+        let errs = [serde_json::json!({ "message": "Invalid token", "status": 400 })];
+        match classify_graphql_errors(400, &errs) {
+            AppError::Api { service, message } => {
+                assert_eq!(service, "anilist");
+                assert_eq!(message, "Invalid token");
+            }
+            other => panic!("expected Api error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn anilist_api_disabled_is_a_service_outage_not_an_api_error() {
+        let errs = [serde_json::json!({
+            "message": "The AniList API has been temporarily disabled due to severe stability issues.",
+            "status": 403,
+        })];
+        match classify_graphql_errors(403, &errs) {
+            AppError::ServiceUnavailable { service, .. } => assert_eq!(service, "anilist"),
+            other => panic!("expected ServiceUnavailable, got {other:?}"),
+        }
     }
 }

@@ -171,7 +171,10 @@ pub async fn push_dirty(state: &AppState, svc: ServiceKind) -> AppResult<()> {
         if let Some(rid) = remote_id {
             match service_impl.delete_entry(&token, rid).await {
                 Ok(()) => repo::remove_entry_row(&state.db, svc, media_id).await?,
-                Err(AppError::RateLimited { .. }) => return Ok(()), // try again next nudge
+                // Transient: keep the row dirty and retry on the next nudge/sync.
+                Err(AppError::RateLimited { .. }) | Err(AppError::ServiceUnavailable { .. }) => {
+                    return Ok(())
+                }
                 Err(e) => tracing::warn!(?e, media_id, "delete push failed"),
             }
         } else {
@@ -194,7 +197,9 @@ pub async fn push_dirty(state: &AppState, svc: ServiceKind) -> AppResult<()> {
         };
         match service_impl.save_entry(&token, &patch).await {
             Ok(saved) => repo::mark_entry_clean(&state.db, svc, &saved).await?,
-            Err(AppError::RateLimited { .. }) => return Ok(()),
+            Err(AppError::RateLimited { .. }) | Err(AppError::ServiceUnavailable { .. }) => {
+                return Ok(())
+            }
             Err(e) => tracing::warn!(?e, media_id = entry.media.id.id, "entry push failed"),
         }
     }

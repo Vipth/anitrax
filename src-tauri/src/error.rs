@@ -16,6 +16,9 @@ pub enum AppError {
     #[error("network error: {0}")]
     Network(String),
 
+    #[error("{service}'s API is temporarily unavailable: {message}")]
+    ServiceUnavailable { service: String, message: String },
+
     #[error("the {service} API returned an error: {message}")]
     Api { service: String, message: String },
 
@@ -43,6 +46,7 @@ enum WireError {
     NotAuthenticated { service: String },
     RateLimited { service: String, retry_after_secs: u64 },
     Network { message: String },
+    ServiceUnavailable { service: String, message: String },
     Api { service: String, message: String },
     Db { message: String },
     Keychain { message: String },
@@ -66,6 +70,10 @@ impl Serialize for AppError {
                 retry_after_secs: *retry_after_secs,
             },
             AppError::Network(message) => WireError::Network {
+                message: message.clone(),
+            },
+            AppError::ServiceUnavailable { service, message } => WireError::ServiceUnavailable {
+                service: service.clone(),
                 message: message.clone(),
             },
             AppError::Api { service, message } => WireError::Api {

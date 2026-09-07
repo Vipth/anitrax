@@ -121,6 +121,7 @@ export interface BudgetSnapshot {
   apiRemaining: number | null;
   parkedForSecs: number;
   queueDepth: number;
+  serviceDown: boolean;
 }
 
 // Tagged mirror of `error.rs::WireError`.
@@ -128,10 +129,16 @@ export type AppError =
   | { kind: "not_authenticated"; data: { service: string } }
   | { kind: "rate_limited"; data: { service: string; retry_after_secs: number } }
   | { kind: "network"; data: { message: string } }
+  | { kind: "service_unavailable"; data: { service: string; message: string } }
   | { kind: "api"; data: { service: string; message: string } }
   | { kind: "db"; data: { message: string } }
   | { kind: "keychain"; data: { message: string } }
   | { kind: "other"; data: { message: string } };
+
+export function errorKind(e: unknown): AppError["kind"] | null {
+  const err = e as AppError | undefined;
+  return err && typeof err === "object" && "kind" in err ? err.kind : null;
+}
 
 export function errorMessage(e: unknown): string {
   const err = e as AppError | undefined;
@@ -143,6 +150,8 @@ export function errorMessage(e: unknown): string {
         return `${err.data.service} is rate limiting us — retrying in ${err.data.retry_after_secs}s.`;
       case "network":
         return `Network error: ${err.data.message}`;
+      case "service_unavailable":
+        return `AniList's API is temporarily down on their end — not your setup. Your cached list still works; pending changes sync when it's back.`;
       case "api":
         return `${err.data.service}: ${err.data.message}`;
       case "db":

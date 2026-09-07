@@ -15,7 +15,12 @@ export const queryClient = new QueryClient({
       refetchOnReconnect: false,
       retry: (count, error) => {
         const e = error as { kind?: string } | undefined;
-        if (e?.kind === "rate_limited" || e?.kind === "not_authenticated") return false;
+        if (
+          e?.kind === "rate_limited" ||
+          e?.kind === "not_authenticated" ||
+          e?.kind === "service_unavailable"
+        )
+          return false;
         return count < 2;
       },
     },

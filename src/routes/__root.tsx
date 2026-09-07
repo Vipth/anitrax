@@ -5,9 +5,10 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
+import { CloudOff } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
-import { useBackendEvents } from "@/lib/hooks";
+import { useBackendEvents, useBudget } from "@/lib/hooks";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
 import { usePrefs, applyTheme } from "@/stores/prefs";
@@ -50,9 +51,25 @@ function RootLayout() {
         {isNavigating && (
           <div className="absolute inset-x-0 top-0 z-50 h-0.5 animate-pulse bg-primary" />
         )}
+        <OutageBanner />
         <Outlet />
       </main>
       <Toaster />
+    </div>
+  );
+}
+
+function OutageBanner() {
+  const { data } = useBudget();
+  if (!data?.serviceDown) return null;
+  return (
+    <div className="flex items-center gap-2 border-b border-warning/40 bg-warning/10 px-6 py-2 text-xs text-warning">
+      <CloudOff className="size-3.5 shrink-0" />
+      <span>
+        AniList&apos;s API is currently down on their end — not your setup. Your
+        cached library still works, and any edits you make will sync
+        automatically once it&apos;s back.
+      </span>
     </div>
   );
 }
