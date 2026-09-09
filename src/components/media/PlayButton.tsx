@@ -75,7 +75,7 @@ export function PlayButton({
     );
   }
 
-  // overlay — a play disc centred on the poster, shown on hover
+  // overlay — a frosted play chip centred on the poster, shown on hover
   return (
     <button
       onClick={play}
@@ -83,11 +83,14 @@ export function PlayButton({
       aria-label={label}
       title={label}
       className={cn(
-        "absolute left-1/2 top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/70 text-white opacity-0 backdrop-blur-sm transition-all hover:scale-105 hover:bg-black/85 focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50",
+        "absolute left-1/2 top-1/2 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full",
+        "bg-background/85 text-foreground shadow-md ring-1 ring-border backdrop-blur-md",
+        "opacity-0 transition-all duration-150 hover:scale-110 hover:bg-background",
+        "focus-visible:opacity-100 group-hover:opacity-100 disabled:opacity-50",
         className,
       )}
     >
-      <Play className="size-5 translate-x-0.5 fill-current" />
+      <Play className="size-4 translate-x-px fill-current" />
     </button>
   );
 }
