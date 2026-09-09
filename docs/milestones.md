@@ -120,6 +120,33 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
+## M6 — Playback detection ("now watching" → auto-progress)
+
+Reversing the original "no auto-detection" call (2026-09-09) — this is what
+makes AniTrax a full Taiga replacement. Built in phases, each useful on its own:
+
+**6a — detect what AniTrax launched.** When you hit *Play* we already know the
+show, episode and file. Track the player process we spawned (plus mpv's IPC
+socket when it's mpv) and, once playback passes a threshold (~80% or the last
+few minutes), offer to bump progress — a toast by default, silent if you opt in.
+Zero window-scraping. Reuses the push pipeline.
+
+**6b — detect any player.** A background monitor reads the foreground media
+player's window title (Windows: `windows` crate; macOS: Accessibility; Linux:
+MPRIS/X11), parses it with the anitomy code from M3, matches to `media_cache`
+with the M3 matcher. Player list + per-player enable in Settings.
+
+**6c — richer player hooks.** mpv JSON IPC, VLC HTTP interface, MPC-HC/BE web
+interface — exact position/duration/path instead of guessing from a title.
+
+- Settings: master toggle, per-show opt-out, "confirm vs auto" mode, watched-%
+  threshold, monitored-player list
+- A "Now watching" strip in the app while detection is active
+- Never touches AniList beyond the existing debounced progress push
+- Unit tests: window title → (show, episode); position → watched / not-yet
+
+---
+
 ## Verification (per milestone)
 
 - **M1:** connect AniList, list renders with correct per-status counts, +1 shows
@@ -129,6 +156,9 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 - **M4:** season grid and stats numbers reconcile with AniList
 - **M5:** an RSS rule adds the right torrent to qBittorrent exactly once, with the
   configured category and save path
+- **M6:** play an episode → progress offer fires at the right point; a title from
+  an external player resolves to the correct show + episode; no false positives
+  on non-anime windows
 
 ---
 
