@@ -71,6 +71,9 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   containing folders (`Sword Art Online/Season 2/…`), so files with only a
   generic name still match; the season number picks the right sequel entry
   ("… S2" → "Sword Art Online II") via AniList's own synonyms
+- ✅ **Popularity tiebreak** — caches AniList `Media.popularity`; when a title
+  collides (an obscure short "Onigiri" carries the synonym "Demon Slayer"), the
+  household name wins. Synonym matches are also discounted vs romaji/english
 - ✅ **Remembered links** — linking a review-queue group stores a rule keyed on
   the folder title + season, so future episodes of that show/season auto-link
   on the next scan. Rules drop when you unlink the show
@@ -82,8 +85,8 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   can touch the network, one request) and a "remember this" toggle
 - ✅ Owned-episode badges on library cards + detail page, tinted when the next
   unwatched episode is already on disk
-- ✅ 16 scanner/matcher unit tests (folder parsing, season→sequel, rule keys)
-  + `episodeRanges` test
+- ✅ 18 scanner/matcher unit tests (folder parsing, season→sequel, synonym
+  collision, arc-named seasons) + `episodeRanges` test
 - ⏳ **Acceptance:** scan a real anime folder, confirm ≥90% correct auto-matches
   against a synced list, and that the manual link picker fills the gaps
 

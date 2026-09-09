@@ -229,6 +229,8 @@ pub struct Media {
     pub cover_color: Option<String>,
     pub banner_url: Option<String>,
     pub average_score: Option<i32>,
+    /// AniList `popularity` — how many users have this on a list.
+    pub popularity: Option<i32>,
     pub genres: Vec<String>,
     pub synonyms: Vec<String>,
     /// RFC3339 date (may be date-only precision).

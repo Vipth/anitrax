@@ -12,6 +12,7 @@ pub const MEDIA_FIELDS: &str = r#"
   season
   seasonYear
   averageScore
+  popularity
   genres
   synonyms
   coverImage { large color }

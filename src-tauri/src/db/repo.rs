@@ -172,8 +172,8 @@ pub async fn upsert_media(db: &Db, m: &Media) -> AppResult<()> {
             service, id, title_romaji, title_english, title_native, format, airing_status,
             description, episodes, duration, season, season_year, cover_url, cover_color,
             banner_url, average_score, genres_json, synonyms_json, start_date, site_url,
-            next_episode, next_airing_at, meta_fetched_at, airing_fetched_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)
+            next_episode, next_airing_at, meta_fetched_at, airing_fetched_at, popularity)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25)
          ON CONFLICT(service, id) DO UPDATE SET
             title_romaji = excluded.title_romaji,
             title_english = excluded.title_english,
@@ -196,7 +196,8 @@ pub async fn upsert_media(db: &Db, m: &Media) -> AppResult<()> {
             next_episode = excluded.next_episode,
             next_airing_at = excluded.next_airing_at,
             meta_fetched_at = excluded.meta_fetched_at,
-            airing_fetched_at = excluded.airing_fetched_at",
+            airing_fetched_at = excluded.airing_fetched_at,
+            popularity = excluded.popularity",
     )
     .bind(m.id.service.as_str())
     .bind(m.id.id)
@@ -222,6 +223,7 @@ pub async fn upsert_media(db: &Db, m: &Media) -> AppResult<()> {
     .bind(next_at)
     .bind(&ts)
     .bind(&ts)
+    .bind(m.popularity)
     .execute(db)
     .await?;
     Ok(())
@@ -250,8 +252,8 @@ async fn upsert_media_tx(
             service, id, title_romaji, title_english, title_native, format, airing_status,
             description, episodes, duration, season, season_year, cover_url, cover_color,
             banner_url, average_score, genres_json, synonyms_json, start_date, site_url,
-            next_episode, next_airing_at, meta_fetched_at, airing_fetched_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)
+            next_episode, next_airing_at, meta_fetched_at, airing_fetched_at, popularity)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25)
          ON CONFLICT(service, id) DO UPDATE SET
             title_romaji = excluded.title_romaji,
             title_english = excluded.title_english,
@@ -274,7 +276,8 @@ async fn upsert_media_tx(
             next_episode = excluded.next_episode,
             next_airing_at = excluded.next_airing_at,
             meta_fetched_at = excluded.meta_fetched_at,
-            airing_fetched_at = excluded.airing_fetched_at",
+            airing_fetched_at = excluded.airing_fetched_at,
+            popularity = excluded.popularity",
     )
     .bind(m.id.service.as_str())
     .bind(m.id.id)
@@ -300,6 +303,7 @@ async fn upsert_media_tx(
     .bind(next_at)
     .bind(&ts)
     .bind(&ts)
+    .bind(m.popularity)
     .execute(&mut **tx)
     .await?;
     Ok(())
@@ -348,6 +352,7 @@ fn media_from_row(r: &sqlx::sqlite::SqliteRow) -> Media {
         cover_color: r.get("cover_color"),
         banner_url: r.get("banner_url"),
         average_score: r.get::<Option<i64>, _>("average_score").map(|x| x as i32),
+        popularity: r.get::<Option<i64>, _>("popularity").map(|x| x as i32),
         genres,
         synonyms,
         start_date: r.get("start_date"),
@@ -366,7 +371,7 @@ pub async fn cached_media(
     let row = sqlx::query(
         "SELECT service, id, title_romaji, title_english, title_native, format,
             airing_status, description, episodes, duration, season, season_year,
-            cover_url, cover_color, banner_url, average_score, genres_json,
+            cover_url, cover_color, banner_url, average_score, popularity, genres_json,
             synonyms_json, start_date, site_url, next_episode, next_airing_at,
             meta_fetched_at
          FROM media_cache WHERE service = ?1 AND id = ?2",
@@ -387,7 +392,7 @@ const ENTRY_SELECT_BASE: &str = "SELECT
     e.started_at, e.completed_at, e.updated_at, e.dirty,
     m.service, m.id, m.title_romaji, m.title_english, m.title_native, m.format,
     m.airing_status, m.description, m.episodes, m.duration, m.season, m.season_year,
-    m.cover_url, m.cover_color, m.banner_url, m.average_score, m.genres_json,
+    m.cover_url, m.cover_color, m.banner_url, m.average_score, m.popularity, m.genres_json,
     m.synonyms_json, m.start_date, m.site_url, m.next_episode, m.next_airing_at
  FROM list_entry e
  JOIN media_cache m ON m.service = e.service AND m.id = e.media_id";
@@ -1049,7 +1054,8 @@ pub async fn delete_link_rule(db: &Db, id: i64) -> AppResult<()> {
 /// Build the matcher index from everything in the media cache.
 pub async fn media_match_index(db: &Db) -> AppResult<Vec<IndexEntry>> {
     let rows = sqlx::query(
-        "SELECT service, id, title_romaji, title_english, title_native, synonyms_json, season_year
+        "SELECT service, id, title_romaji, title_english, title_native, synonyms_json,
+            season_year, format, popularity
          FROM media_cache",
     )
     .fetch_all(db)
@@ -1058,21 +1064,23 @@ pub async fn media_match_index(db: &Db) -> AppResult<Vec<IndexEntry>> {
         .iter()
         .map(|r| {
             let service: String = r.get("service");
-            let mut titles: Vec<String> = ["title_romaji", "title_english", "title_native"]
+            let primary: Vec<String> = ["title_romaji", "title_english", "title_native"]
                 .iter()
                 .filter_map(|c| r.get::<Option<String>, _>(*c))
                 .collect();
-            if let Some(syn) = r.get::<Option<String>, _>("synonyms_json") {
-                if let Ok(list) = serde_json::from_str::<Vec<String>>(&syn) {
-                    titles.extend(list);
-                }
-            }
-            IndexEntry::new(
-                service.parse().unwrap_or(ServiceKind::AniList),
-                r.get("id"),
-                r.get::<Option<i64>, _>("season_year").map(|y| y as i32),
-                titles,
-            )
+            let synonyms: Vec<String> = r
+                .get::<Option<String>, _>("synonyms_json")
+                .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+                .unwrap_or_default();
+            IndexEntry::new(crate::library::matcher::IndexInput {
+                service: service.parse().unwrap_or(ServiceKind::AniList),
+                media_id: r.get("id"),
+                season_year: r.get::<Option<i64>, _>("season_year").map(|y| y as i32),
+                popularity: r.get::<Option<i64>, _>("popularity"),
+                format: r.get::<Option<String>, _>("format"),
+                primary,
+                synonyms,
+            })
         })
         .collect())
 }

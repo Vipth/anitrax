@@ -11,6 +11,23 @@ pub const AUTO_THRESHOLD: f64 = 0.82;
 /// If the top two candidates are within this margin the match is ambiguous and
 /// we'd rather ask than guess wrong.
 const AMBIGUITY_MARGIN: f64 = 0.06;
+/// A match found only through a `synonyms` entry (fan translations, other-
+/// language titles, abbreviations) is discounted to this fraction of its raw
+/// score — an obscure show sharing a synonym with a household name shouldn't win
+/// on that alone.
+const SYNONYM_WEIGHT: f64 = 0.85;
+
+/// Raw fields from one `media_cache` row, before normalisation.
+pub struct IndexInput {
+    pub service: ServiceKind,
+    pub media_id: i64,
+    pub season_year: Option<i32>,
+    pub popularity: Option<i64>,
+    pub format: Option<String>,
+    /// romaji / english / native.
+    pub primary: Vec<String>,
+    pub synonyms: Vec<String>,
+}
 
 /// One row of the search index, prepared once per scan.
 #[derive(Debug, Clone)]
@@ -18,29 +35,36 @@ pub struct IndexEntry {
     pub service: ServiceKind,
     pub media_id: i64,
     pub season_year: Option<i32>,
-    /// Every known title/synonym, normalised via [`normalize`].
-    pub titles: Vec<String>,
+    /// AniList list-count; 0 when unknown. Breaks near-ties.
+    pub popularity: i64,
+    /// TV_SHORT / MUSIC — weaker candidates when a title collides.
+    pub minor_format: bool,
+    /// Normalised romaji / english / native.
+    pub primary_titles: Vec<String>,
+    /// Normalised synonyms.
+    pub synonyms: Vec<String>,
 }
 
 impl IndexEntry {
-    pub fn new(
-        service: ServiceKind,
-        media_id: i64,
-        season_year: Option<i32>,
-        raw_titles: impl IntoIterator<Item = String>,
-    ) -> Self {
-        let mut titles: Vec<String> = raw_titles
-            .into_iter()
-            .map(|t| normalize(&t))
-            .filter(|t| !t.is_empty())
-            .collect();
-        titles.sort();
-        titles.dedup();
+    pub fn new(input: IndexInput) -> Self {
+        let norm = |raw: Vec<String>| {
+            let mut v: Vec<String> = raw
+                .into_iter()
+                .map(|t| normalize(&t))
+                .filter(|t| !t.is_empty())
+                .collect();
+            v.sort();
+            v.dedup();
+            v
+        };
         Self {
-            service,
-            media_id,
-            season_year,
-            titles,
+            service: input.service,
+            media_id: input.media_id,
+            season_year: input.season_year,
+            popularity: input.popularity.unwrap_or(0).max(0),
+            minor_format: matches!(input.format.as_deref(), Some("TV_SHORT") | Some("MUSIC")),
+            primary_titles: norm(input.primary),
+            synonyms: norm(input.synonyms),
         }
     }
 }
@@ -132,14 +156,18 @@ fn score_pair(file: &str, cand: &str) -> f64 {
     // Containment ("Show" inside "Show 2") is a good signal, but scale it by how
     // much extra the longer title carries — "Sword Art Online" sits inside both
     // "Sword Art Online II" *and* "Sword Art Online Alternative: GGO II", and
-    // only the first is a real match.
+    // only the first is a real match. A *prefix* relationship
+    // ("demon slayer" → "demon slayer kimetsu no yaiba") is stronger still.
     let words = |s: &str| s.split_whitespace().count() as f64;
     let contains = if file.contains(cand) || cand.contains(file) {
         let (short, long) = {
             let (a, b) = (words(file), words(cand));
             (a.min(b), a.max(b))
         };
-        0.55 + 0.45 * (short / long)
+        let ratio = short / long;
+        let prefix = cand.starts_with(file) || file.starts_with(cand);
+        let floor = if prefix { 0.72 } else { 0.55 };
+        floor + (1.0 - floor) * ratio
     } else {
         0.0
     };
@@ -168,6 +196,13 @@ pub fn best_match(
     best
 }
 
+struct Scored<'a> {
+    score: f64,
+    /// This entry's title carries the file's season number (e.g. "… II").
+    season_matched: bool,
+    entry: &'a IndexEntry,
+}
+
 fn match_one(
     file_title: &str,
     file_season: Option<i64>,
@@ -180,34 +215,33 @@ fn match_one(
     }
     let season_hint = file_season.filter(|s| *s > 1).map(|s| s.to_string());
 
-    struct Scored<'a> {
-        score: f64,
-        /// This entry's title carries the file's season number (e.g. "… II").
-        season_matched: bool,
-        entry: &'a IndexEntry,
-    }
-
     let mut scored: Vec<Scored> = index
         .iter()
         .map(|entry| {
-            let mut best = entry
-                .titles
+            let primary = entry
+                .primary_titles
                 .iter()
                 .map(|t| score_pair(&norm, t))
                 .fold(0.0_f64, f64::max);
+            let synonym = entry
+                .synonyms
+                .iter()
+                .map(|t| score_pair(&norm, t) * SYNONYM_WEIGHT)
+                .fold(0.0_f64, f64::max);
+            let mut best = primary.max(synonym);
 
             // Season agreement: if the file says S2, favour an entry whose title
             // ends in "2"; gently penalise ones that look like season 1.
             let mut season_matched = false;
             if let Some(hint) = &season_hint {
-                let mentions = entry
-                    .titles
-                    .iter()
+                let all_titles = entry.primary_titles.iter().chain(&entry.synonyms);
+                let mentions = all_titles
+                    .clone()
                     .any(|t| t.split_whitespace().last() == Some(hint.as_str()));
                 if mentions {
                     best += 0.10;
                     season_matched = true;
-                } else if entry.titles.iter().all(|t| {
+                } else if all_titles.clone().all(|t| {
                     !t.chars().last().map(|c| c.is_ascii_digit()).unwrap_or(false)
                 }) {
                     best -= 0.06;
@@ -237,23 +271,60 @@ fn match_one(
     if top.score < AUTO_THRESHOLD {
         return None;
     }
-    if let Some(second) = scored.get(1) {
-        // The season number is a decisive signal: if only the top entry carries
-        // it, a close runner-up isn't real ambiguity.
-        let season_breaks_tie = top.season_matched && !second.season_matched;
-        if !season_breaks_tie
-            && top.score - second.score < AMBIGUITY_MARGIN
-            && second.entry.media_id != top.entry.media_id
-            && second.score >= AUTO_THRESHOLD
-        {
-            return None; // too close to call
-        }
+    let mk = |s: &Scored| Match {
+        service: s.entry.service,
+        media_id: s.entry.media_id,
+        score: s.score,
+    };
+
+    let Some(second) = scored.get(1) else {
+        return Some(mk(top));
+    };
+    // The season number is a decisive signal: if only the top entry carries it,
+    // a close runner-up isn't real ambiguity.
+    let season_breaks_tie = top.season_matched && !second.season_matched;
+    let close = top.score - second.score < AMBIGUITY_MARGIN
+        && second.entry.media_id != top.entry.media_id
+        && second.score >= AUTO_THRESHOLD;
+
+    if !close || season_breaks_tie {
+        return Some(mk(top));
     }
-    Some(Match {
-        service: top.entry.service,
-        media_id: top.entry.media_id,
-        score: top.score,
-    })
+
+    // A near-tie. Popularity can still settle it — but only the lopsided case:
+    // an obscure entry that only ranks because it shares a synonym with a
+    // household name loses to the household name. Two comparably popular
+    // franchise entries stay a genuine tie and go to review.
+    let cluster: Vec<&Scored> = scored
+        .iter()
+        .take_while(|s| top.score - s.score < AMBIGUITY_MARGIN)
+        .collect();
+    rescue_by_popularity(&cluster).map(mk)
+}
+
+/// A TV short / music video sharing a title is even less likely to be what the
+/// folder meant — discount its weight.
+fn pop_weight(s: &Scored) -> i64 {
+    if s.entry.minor_format {
+        s.entry.popularity / 4
+    } else {
+        s.entry.popularity
+    }
+}
+
+/// If the highest-*scored* entry is obscure and a near-tied alternative dwarfs
+/// it in popularity (≥10×), that alternative is what the folder meant.
+fn rescue_by_popularity<'a>(cluster: &[&'a Scored<'a>]) -> Option<&'a Scored<'a>> {
+    let score_winner = cluster.first()?;
+    let popular = cluster.iter().max_by_key(|s| pop_weight(s))?;
+    if popular.entry.media_id != score_winner.entry.media_id
+        && pop_weight(popular) >= 20_000
+        && pop_weight(popular) >= pop_weight(score_winner).max(1) * 10
+    {
+        Some(*popular)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -261,12 +332,35 @@ mod tests {
     use super::*;
 
     fn idx(id: i64, year: Option<i32>, titles: &[&str]) -> IndexEntry {
-        IndexEntry::new(
-            ServiceKind::AniList,
-            id,
-            year,
-            titles.iter().map(|s| s.to_string()),
-        )
+        IndexEntry::new(IndexInput {
+            service: ServiceKind::AniList,
+            media_id: id,
+            season_year: year,
+            popularity: None,
+            format: Some("TV".into()),
+            primary: titles.iter().map(|s| s.to_string()).collect(),
+            synonyms: vec![],
+        })
+    }
+
+    /// An entry with distinct primary titles, synonyms, popularity and format.
+    fn idx_full(
+        id: i64,
+        year: Option<i32>,
+        popularity: i64,
+        format: &str,
+        primary: &[&str],
+        synonyms: &[&str],
+    ) -> IndexEntry {
+        IndexEntry::new(IndexInput {
+            service: ServiceKind::AniList,
+            media_id: id,
+            season_year: year,
+            popularity: Some(popularity),
+            format: Some(format.into()),
+            primary: primary.iter().map(|s| s.to_string()).collect(),
+            synonyms: synonyms.iter().map(|s| s.to_string()).collect(),
+        })
     }
 
     #[test]
@@ -332,6 +426,54 @@ mod tests {
         // Season 1 -> the original.
         let m = best_match("SAO", Some("Sword Art Online"), Some(1), None, &index).unwrap();
         assert_eq!(m.media_id, 11757);
+    }
+
+    #[test]
+    fn obscure_synonym_collision_loses_to_the_popular_show() {
+        // "Onigiri" (2016 short) carries the synonym "Demon Slayer"; the folder
+        // "Demon Slayer" means the household name, not the short.
+        let index = vec![
+            idx_full(21612, Some(2016), 3_000, "TV_SHORT", &["Onigiri"], &["Demon Slayer"]),
+            idx_full(
+                101922,
+                Some(2019),
+                600_000,
+                "TV",
+                &["Kimetsu no Yaiba", "Demon Slayer: Kimetsu no Yaiba"],
+                &["KnY"],
+            ),
+        ];
+        let m = best_match("Demon Slayer", Some("Demon Slayer"), Some(1), None, &index)
+            .unwrap();
+        assert_eq!(m.media_id, 101922);
+    }
+
+    #[test]
+    fn arc_named_second_season_goes_to_review() {
+        // Folder "Demon Slayer" S2, but the real S2 entries are arc-named with no
+        // "2" anywhere — nothing should auto-match.
+        let index = vec![
+            idx_full(21612, Some(2016), 3_000, "TV_SHORT", &["Onigiri"], &["Demon Slayer"]),
+            idx_full(
+                101922,
+                Some(2019),
+                600_000,
+                "TV",
+                &["Kimetsu no Yaiba", "Demon Slayer: Kimetsu no Yaiba"],
+                &[],
+            ),
+            idx_full(
+                142329,
+                Some(2021),
+                300_000,
+                "TV",
+                &["Kimetsu no Yaiba: Yuukaku-hen", "Demon Slayer: Entertainment District Arc"],
+                &[],
+            ),
+        ];
+        assert!(
+            best_match("Demon Slayer", Some("Demon Slayer"), Some(2), None, &index).is_none()
+        );
     }
 
     #[test]

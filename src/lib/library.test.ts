@@ -18,6 +18,7 @@ function entry(over: Partial<MediaListEntry> & { id: number }): MediaListEntry {
       coverColor: null,
       bannerUrl: null,
       averageScore: null,
+      popularity: null,
       genres: [],
       synonyms: [],
       startDate: null,

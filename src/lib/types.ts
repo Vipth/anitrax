@@ -60,6 +60,7 @@ export interface Media {
   coverColor: string | null;
   bannerUrl: string | null;
   averageScore: number | null;
+  popularity: number | null;
   genres: string[];
   synonyms: string[];
   startDate: string | null;

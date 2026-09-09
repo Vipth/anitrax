@@ -94,6 +94,7 @@ pub fn media(v: &Value) -> Option<Media> {
         cover_color: s(&cover, "color"),
         banner_url: s(v, "bannerImage"),
         average_score: i(v, "averageScore").map(|x| x as i32),
+        popularity: i(v, "popularity").map(|x| x as i32),
         genres: v
             .get("genres")
             .and_then(|g| g.as_array())
