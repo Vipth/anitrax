@@ -7,6 +7,7 @@ import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
+import { AiringBadge } from "@/components/media/AiringBadge";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { ProgressControl } from "@/components/media/ProgressControl";
 import { EditEntryDialog } from "@/components/media/EditEntryDialog";
@@ -112,6 +113,7 @@ function MediaDetailPage() {
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <AiringBadge status={media.airingStatus} variant="plain" />
               <span>{FORMAT_LABEL[media.format]}</span>
               {media.episodes && <span>· {media.episodes} episodes</span>}
               {media.seasonYear && (

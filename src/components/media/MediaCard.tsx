@@ -3,6 +3,7 @@ import { HardDrive, Pencil, Star, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaListEntry } from "@/lib/types";
 import { FORMAT_LABEL, countdown, mediaTitle, scoreToTen } from "@/lib/format";
+import { AiringBadge } from "./AiringBadge";
 import { ProgressControl } from "./ProgressControl";
 import { MediaPoster } from "./MediaPoster";
 
@@ -100,12 +101,15 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
           <MediaPoster media={entry.media} className="size-full" />
         </Link>
 
-        {entry.scoreRaw > 0 && (
-          <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-            <Star className="size-3 fill-warning text-warning" />
-            {ten}
-          </span>
-        )}
+        <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
+          <AiringBadge status={entry.media.airingStatus} />
+          {entry.scoreRaw > 0 && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+              <Star className="size-3 fill-warning text-warning" />
+              {ten}
+            </span>
+          )}
+        </div>
         {entry.dirty && (
           <span
             className="absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-black/40"
@@ -204,6 +208,11 @@ export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
             {FORMAT_LABEL[entry.media.format]}
             {entry.media.seasonYear ? ` · ${entry.media.seasonYear}` : ""}
           </span>
+          <AiringBadge
+            status={entry.media.airingStatus}
+            variant="plain"
+            className="px-1 py-0"
+          />
         </div>
       </div>
 

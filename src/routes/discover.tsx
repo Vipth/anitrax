@@ -5,6 +5,7 @@ import { Check, CloudOff, Plus, Search } from "lucide-react";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Input, Skeleton } from "@/components/ui/primitives";
+import { AiringBadge } from "@/components/media/AiringBadge";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { useAddEntry, useLibrary } from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
@@ -143,11 +144,14 @@ function ResultRow({ media, onList }: { media: Media; onList: boolean }) {
         >
           {mediaTitle(media)}
         </Link>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {FORMAT_LABEL[media.format]}
-          {media.episodes ? ` · ${media.episodes} ep` : ""}
-          {media.seasonYear ? ` · ${media.seasonYear}` : ""}
-          {media.averageScore != null ? ` · ${media.averageScore}%` : ""}
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+          <AiringBadge status={media.airingStatus} variant="plain" />
+          <span>
+            {FORMAT_LABEL[media.format]}
+            {media.episodes ? ` · ${media.episodes} ep` : ""}
+            {media.seasonYear ? ` · ${media.seasonYear}` : ""}
+            {media.averageScore != null ? ` · ${media.averageScore}%` : ""}
+          </span>
         </p>
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {stripHtml(media.description)}
