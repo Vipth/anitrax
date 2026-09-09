@@ -1,5 +1,10 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink, HardDrive, Plus, Star } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -32,6 +37,8 @@ function MediaDetailPage() {
   const { mediaId } = Route.useParams();
   const id = Number(mediaId);
   const [editing, setEditing] = React.useState(false);
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
 
   const { data: media, isLoading } = useQuery({
     queryKey: qk.media(id),
@@ -87,12 +94,21 @@ function MediaDetailPage() {
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/10" />
-        <Link
-          to="/"
-          className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-black/50 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/70"
-        >
-          <ArrowLeft className="size-3.5" /> Library
-        </Link>
+        {canGoBack ? (
+          <button
+            onClick={() => router.history.back()}
+            className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-black/50 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/70"
+          >
+            <ArrowLeft className="size-3.5" /> Back
+          </button>
+        ) : (
+          <Link
+            to="/"
+            className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-black/50 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/70"
+          >
+            <ArrowLeft className="size-3.5" /> Library
+          </Link>
+        )}
       </div>
 
       <div className="mx-auto -mt-24 max-w-[1000px] px-6">

@@ -19,6 +19,11 @@ interface UiState {
    * navigating away to Discover/Settings and back. */
   libraryFilter: string;
   setLibraryFilter: (v: string) => void;
+
+  /** Discover search text — same idea: opening a result and coming back
+   * should land you on your search, not a blank box. */
+  discoverQuery: string;
+  setDiscoverQuery: (v: string) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -35,4 +40,7 @@ export const useUi = create<UiState>((set) => ({
 
   libraryFilter: "",
   setLibraryFilter: (libraryFilter) => set({ libraryFilter }),
+
+  discoverQuery: "",
+  setDiscoverQuery: (discoverQuery) => set({ discoverQuery }),
 }));

@@ -10,6 +10,7 @@ import { MediaPoster } from "@/components/media/MediaPoster";
 import { useAddEntry, useLibrary } from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
 import { FORMAT_LABEL, mediaTitle, stripHtml } from "@/lib/format";
+import { useUi } from "@/stores/ui";
 import { toast } from "@/stores/toast";
 import { errorKind, errorMessage } from "@/lib/types";
 import type { Media } from "@/lib/types";
@@ -28,7 +29,8 @@ function useDebounced<T>(value: T, ms: number) {
 }
 
 function DiscoverPage() {
-  const [query, setQuery] = React.useState("");
+  const query = useUi((s) => s.discoverQuery);
+  const setQuery = useUi((s) => s.setDiscoverQuery);
   const debounced = useDebounced(query.trim(), 500);
   const enabled = debounced.length >= 3;
   const searchRef = React.useRef<HTMLInputElement>(null);
