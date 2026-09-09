@@ -79,6 +79,9 @@ export const api = {
 
   libraryOwned: () => invoke<OwnedMedia[]>("library_owned"),
 
+  playEpisode: (mediaId: number, episode: number, service?: ServiceKind) =>
+    invoke<void>("play_episode", { mediaId, episode, service }),
+
   linkLibraryFiles: (
     fileIds: number[],
     mediaId: number,

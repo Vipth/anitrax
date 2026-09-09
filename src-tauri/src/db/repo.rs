@@ -1085,6 +1085,28 @@ pub async fn media_match_index(db: &Db) -> AppResult<Vec<IndexEntry>> {
         .collect())
 }
 
+/// The on-disk file for one episode of a matched show, if any. Prefers the
+/// largest file when a folder has duplicates (e.g. a 1080p and a 720p rip).
+pub async fn episode_file(
+    db: &Db,
+    service: ServiceKind,
+    media_id: i64,
+    episode: i64,
+) -> AppResult<Option<String>> {
+    let path: Option<String> = sqlx::query_scalar(
+        "SELECT path FROM library_file
+         WHERE service = ?1 AND media_id = ?2 AND parsed_episode = ?3
+         ORDER BY size_bytes DESC
+         LIMIT 1",
+    )
+    .bind(service.as_str())
+    .bind(media_id)
+    .bind(episode)
+    .fetch_optional(db)
+    .await?;
+    Ok(path)
+}
+
 /// Episodes present on disk per matched media.
 pub async fn owned_media(db: &Db) -> AppResult<Vec<OwnedMedia>> {
     let rows = sqlx::query(

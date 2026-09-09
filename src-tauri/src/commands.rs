@@ -212,6 +212,22 @@ pub async fn library_owned(state: State<'_, AppState>) -> AppResult<Vec<OwnedMed
     sync::owned_media(&state).await
 }
 
+/// Open the local file for `episode` of `media_id` in the OS default player.
+#[tauri::command]
+pub async fn play_episode(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    media_id: i64,
+    episode: i64,
+    service: Option<String>,
+) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let path = sync::episode_file_path(&state, service.as_deref(), media_id, episode).await?;
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|e| crate::error::AppError::other(format!("Couldn't open the file: {e}")))
+}
+
 #[tauri::command]
 pub async fn link_library_files(
     state: State<'_, AppState>,

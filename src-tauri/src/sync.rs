@@ -275,6 +275,18 @@ pub async fn owned_media(state: &AppState) -> AppResult<Vec<OwnedMedia>> {
     repo::owned_media(&state.db).await
 }
 
+/// Absolute path of the local file for one episode. Errors if it isn't on disk.
+pub async fn episode_file_path(
+    state: &AppState,
+    service: Option<&str>,
+    media_id: i64,
+    episode: i64,
+) -> AppResult<String> {
+    repo::episode_file(&state.db, parse_service(service), media_id, episode)
+        .await?
+        .ok_or_else(|| AppError::other("That episode isn't in your local library."))
+}
+
 /// Add a folder and immediately scan it. Errors if the path isn't a directory.
 pub async fn add_library_folder(state: &AppState, path: &str) -> AppResult<LibraryFolder> {
     let p = Path::new(path);

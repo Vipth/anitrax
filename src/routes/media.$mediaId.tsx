@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { AiringBadge } from "@/components/media/AiringBadge";
 import { MediaPoster } from "@/components/media/MediaPoster";
+import { PlayButton } from "@/components/media/PlayButton";
 import { ProgressControl } from "@/components/media/ProgressControl";
 import { EditEntryDialog } from "@/components/media/EditEntryDialog";
 import { useAddEntry, useLibrary, useOwnedMedia } from "@/lib/hooks";
@@ -178,6 +179,7 @@ function MediaDetailPage() {
                       {scoreToTen(entry.scoreRaw)}
                     </span>
                   )}
+                  <PlayButton entry={entry} owned={ownedEpisodes} variant="full" />
                   <Button
                     variant="secondary"
                     size="sm"

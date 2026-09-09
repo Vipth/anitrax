@@ -85,6 +85,9 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   can touch the network, one request) and a "remember this" toggle
 - ✅ Owned-episode badges on library cards + detail page, tinted when the next
   unwatched episode is already on disk
+- ✅ **Play next episode** — a play button (poster hover / list / detail) opens
+  `progress + 1` in the OS default player when that file is in the library.
+  Progress stays manual (no scrobbling) — bump it with +1 when you're done
 - ✅ 18 scanner/matcher unit tests (folder parsing, season→sequel, synonym
   collision, arc-named seasons) + `episodeRanges` test
 - ⏳ **Acceptance:** scan a real anime folder, confirm ≥90% correct auto-matches

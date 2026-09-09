@@ -55,6 +55,7 @@ pub fn run() {
             commands::scan_library,
             commands::library_files,
             commands::library_owned,
+            commands::play_episode,
             commands::link_library_files,
             commands::unlink_library_file,
             commands::library_link_rules,

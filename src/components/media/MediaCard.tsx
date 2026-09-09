@@ -3,7 +3,9 @@ import { HardDrive, Pencil, Star, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaListEntry } from "@/lib/types";
 import { FORMAT_LABEL, countdown, mediaTitle, scoreToTen } from "@/lib/format";
+import { nextEpisodeOnDisk } from "@/lib/library";
 import { AiringBadge } from "./AiringBadge";
+import { PlayButton } from "./PlayButton";
 import { ProgressControl } from "./ProgressControl";
 import { MediaPoster } from "./MediaPoster";
 
@@ -25,10 +27,7 @@ export function OwnedBadge({
   className?: string;
 }) {
   if (!owned || owned.length === 0) return null;
-  const total = entry.media.episodes;
-  const nextReady =
-    owned.includes(entry.progress + 1) &&
-    (total == null || entry.progress < total);
+  const nextReady = nextEpisodeOnDisk(entry, owned) != null;
   return (
     <span
       className={cn(
@@ -123,6 +122,8 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
             {countdown(entry.media.nextAiring.airingAt)}
           </span>
         )}
+
+        <PlayButton entry={entry} owned={owned} />
 
         <button
           onClick={() => onEdit(entry)}
@@ -223,6 +224,7 @@ export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
           {ten}
         </span>
       )}
+      <PlayButton entry={entry} owned={owned} variant="icon" />
       <ProgressControl entry={entry} />
       <button
         onClick={() => onEdit(entry)}

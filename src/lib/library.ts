@@ -2,6 +2,21 @@ import type { LibrarySort } from "@/stores/prefs";
 import type { MediaListEntry } from "./types";
 import { mediaTitle } from "./format";
 
+/**
+ * The episode you'd watch next, if it's sitting on disk — `progress + 1`, unless
+ * you've already finished the show. `null` means "no Play button".
+ */
+export function nextEpisodeOnDisk(
+  entry: MediaListEntry,
+  owned: number[] | undefined,
+): number | null {
+  if (!owned || owned.length === 0) return null;
+  const total = entry.media.episodes;
+  if (total != null && entry.progress >= total) return null;
+  const next = entry.progress + 1;
+  return owned.includes(next) ? next : null;
+}
+
 export function filterEntries(
   entries: MediaListEntry[],
   query: string,
