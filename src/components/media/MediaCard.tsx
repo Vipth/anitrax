@@ -49,40 +49,37 @@ export function OwnedBadge({
   );
 }
 
+/** Episodes aired that the user hasn't watched yet (0 if caught up / not airing). */
+function episodesBehind(entry: MediaListEntry): number {
+  return entry.media.nextAiring != null
+    ? Math.max(0, entry.media.nextAiring.episode - 1 - entry.progress)
+    : 0;
+}
+
 function ProgressBar({ entry }: { entry: MediaListEntry }) {
   const total = entry.media.episodes ?? 0;
   const pct = total > 0 ? Math.min(100, (entry.progress / total) * 100) : 0;
-  const behind =
-    entry.media.nextAiring != null
-      ? Math.max(0, entry.media.nextAiring.episode - 1 - entry.progress)
-      : 0;
   return (
-    <div className="space-y-1">
-      <div className="h-1 overflow-hidden rounded-full bg-border/70">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            behind > 0 ? "bg-warning" : "bg-primary",
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      {behind > 0 && (
-        <p className="text-[11px] font-medium text-warning">
-          {behind} episode{behind > 1 ? "s" : ""} behind
-        </p>
-      )}
+    <div className="h-1 overflow-hidden rounded-full bg-border/70">
+      <div
+        className={cn(
+          "h-full rounded-full transition-all",
+          episodesBehind(entry) > 0 ? "bg-warning" : "bg-primary",
+        )}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
 
 export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
   const ten = scoreToTen(entry.scoreRaw);
+  const behind = episodesBehind(entry);
 
   return (
     <div
       data-entry-id={entry.media.id.id}
-      className="group relative flex scroll-mt-24 flex-col gap-2"
+      className="group relative flex h-full scroll-mt-24 flex-col gap-2"
     >
       <div
         className={cn(
@@ -102,6 +99,11 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
 
         <div className="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
           <AiringBadge status={entry.media.airingStatus} />
+          {behind > 0 && (
+            <span className="inline-flex items-center rounded-md bg-warning/90 px-1.5 py-0.5 text-[11px] font-semibold text-black backdrop-blur-sm">
+              {behind} behind
+            </span>
+          )}
           {entry.scoreRaw > 0 && (
             <span className="inline-flex items-center gap-0.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
               <Star className="size-3 fill-warning text-warning" />
@@ -134,12 +136,12 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
         </button>
       </div>
 
-      <div className="min-w-0 space-y-1.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <Link
           to="/media/$mediaId"
           params={{ mediaId: String(entry.media.id.id) }}
           className={cn(
-            "line-clamp-2 text-sm font-medium leading-tight hover:text-primary",
+            "line-clamp-2 min-h-[2.375rem] text-sm font-medium leading-tight hover:text-primary",
             selected && "text-primary",
           )}
           title={mediaTitle(entry.media)}
@@ -147,7 +149,7 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
           {mediaTitle(entry.media)}
         </Link>
         <ProgressBar entry={entry} />
-        <div className="flex items-center justify-between gap-1">
+        <div className="mt-auto flex items-center justify-between gap-1 pt-0.5">
           <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
             <Tv className="size-3 shrink-0" />
             <span className="truncate">
