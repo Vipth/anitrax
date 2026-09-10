@@ -543,6 +543,39 @@ pub async fn replace_list_from_remote(
     Ok(())
 }
 
+/// Fill in a "started watching" date on the transition into `Current` (or the
+/// first episode of an already-current entry) — but never overwrite one that's
+/// already set, so an explicit clear survives a re-save.
+fn auto_started_date(
+    resolved: Option<String>,
+    base_status: ListStatus,
+    status: ListStatus,
+    base_progress: i32,
+    progress: i32,
+    today: &str,
+) -> Option<String> {
+    if resolved.is_some() {
+        return resolved;
+    }
+    let began = status == ListStatus::Current
+        && (base_status != ListStatus::Current || (base_progress == 0 && progress > 0));
+    began.then(|| today.to_string())
+}
+
+/// Fill in a "finished" date on the transition into `Completed`, same rules.
+fn auto_completed_date(
+    resolved: Option<String>,
+    base_status: ListStatus,
+    status: ListStatus,
+    today: &str,
+) -> Option<String> {
+    if resolved.is_some() {
+        return resolved;
+    }
+    (status == ListStatus::Completed && base_status != ListStatus::Completed)
+        .then(|| today.to_string())
+}
+
 /// Apply a local edit optimistically and mark the row dirty for the push worker.
 pub async fn apply_local_patch(
     db: &Db,
@@ -580,8 +613,21 @@ pub async fn apply_local_patch(
         Some(s) if s.trim().is_empty() => None,
         Some(s) => Some(s.trim().to_string()),
     };
-    let started_at = resolve_date(&patch.started_at, &base.started_at);
-    let completed_at = resolve_date(&patch.completed_at, &base.completed_at);
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+    let started_at = auto_started_date(
+        resolve_date(&patch.started_at, &base.started_at),
+        base.status,
+        status,
+        base.progress,
+        progress,
+        &today,
+    );
+    let completed_at = auto_completed_date(
+        resolve_date(&patch.completed_at, &base.completed_at),
+        base.status,
+        status,
+        &today,
+    );
 
     sqlx::query(
         "INSERT INTO list_entry (
@@ -1227,4 +1273,60 @@ pub async fn replace_season(
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TODAY: &str = "2026-09-10";
+
+    #[test]
+    fn started_date_fills_on_first_watch_only_when_blank() {
+        // Planning -> Current: auto-fill.
+        assert_eq!(
+            auto_started_date(None, ListStatus::Planning, ListStatus::Current, 0, 1, TODAY),
+            Some(TODAY.into())
+        );
+        // Already Current, bumping past the first episode: no change.
+        assert_eq!(
+            auto_started_date(None, ListStatus::Current, ListStatus::Current, 3, 4, TODAY),
+            None
+        );
+        // Current, first episode: auto-fill.
+        assert_eq!(
+            auto_started_date(None, ListStatus::Current, ListStatus::Current, 0, 1, TODAY),
+            Some(TODAY.into())
+        );
+        // A date the user set is never overwritten.
+        assert_eq!(
+            auto_started_date(
+                Some("2020-01-01".into()),
+                ListStatus::Planning,
+                ListStatus::Current,
+                0,
+                1,
+                TODAY
+            ),
+            Some("2020-01-01".into())
+        );
+    }
+
+    #[test]
+    fn completed_date_fills_on_finishing_only_when_blank() {
+        assert_eq!(
+            auto_completed_date(None, ListStatus::Current, ListStatus::Completed, TODAY),
+            Some(TODAY.into())
+        );
+        // Re-saving an already-completed entry with the date cleared keeps it clear.
+        assert_eq!(
+            auto_completed_date(None, ListStatus::Completed, ListStatus::Completed, TODAY),
+            None
+        );
+        // Dropped, not completed: no date.
+        assert_eq!(
+            auto_completed_date(None, ListStatus::Current, ListStatus::Dropped, TODAY),
+            None
+        );
+    }
 }
