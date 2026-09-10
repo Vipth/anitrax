@@ -11,9 +11,7 @@ function useNow(active = true) {
   return now;
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
-/** Live, ticking countdown to a media's next episode — one clean line. */
+/** Live, ticking countdown to a media's next episode — one inline line. */
 export function Countdown({
   airingAt,
   episode,
@@ -29,26 +27,29 @@ export function Countdown({
 
   if (diff <= 0) {
     return (
-      <p className="mt-4 flex items-center gap-2 text-sm font-medium text-warning">
-        <Radio className="size-4 animate-pulse" />
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warning">
+        <Radio className="size-3.5 animate-pulse" />
         Episode {episode} is airing now
-      </p>
+      </span>
     );
   }
 
-  const d = Math.floor(diff / 86_400_000);
-  const h = Math.floor((diff % 86_400_000) / 3_600_000);
-  const m = Math.floor((diff % 3_600_000) / 60_000);
-  const s = Math.floor((diff % 60_000) / 1_000);
+  const units = [
+    { v: Math.floor(diff / 86_400_000), u: "d" },
+    { v: Math.floor((diff % 86_400_000) / 3_600_000), u: "h" },
+    { v: Math.floor((diff % 3_600_000) / 60_000), u: "m" },
+    { v: Math.floor((diff % 60_000) / 1_000), u: "s" },
+  ];
+  const first = units.findIndex((x) => x.v > 0);
+  const shown = units.slice(first === -1 ? 3 : first);
 
   return (
-    <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-      <Timer className="size-4 text-warning" />
+    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Timer className="size-3.5 text-warning" />
       Episode {episode} airs in
       <span className="font-semibold tabular-nums text-warning">
-        {d > 0 && `${d}d `}
-        {pad(h)}:{pad(m)}:{pad(s)}
+        {shown.map((x) => `${x.v}${x.u}`).join(" ")}
       </span>
-    </p>
+    </span>
   );
 }

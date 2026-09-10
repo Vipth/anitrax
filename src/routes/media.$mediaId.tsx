@@ -138,8 +138,14 @@ function MediaDetailPage() {
               </p>
             )}
 
-            <div className="mt-2.5">
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
               <AiringBadge status={media.airingStatus} variant="plain" />
+              {media.nextAiring && (
+                <Countdown
+                  airingAt={media.nextAiring.airingAt}
+                  episode={media.nextAiring.episode}
+                />
+              )}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -229,12 +235,6 @@ function MediaDetailPage() {
               )}
             </div>
 
-            {media.nextAiring && (
-              <Countdown
-                airingAt={media.nextAiring.airingAt}
-                episode={media.nextAiring.episode}
-              />
-            )}
           </div>
         </div>
 
