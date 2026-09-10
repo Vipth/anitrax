@@ -47,17 +47,46 @@ function episodesBehind(entry: MediaListEntry): number {
     : 0;
 }
 
-function ProgressBar({ entry }: { entry: MediaListEntry }) {
+/**
+ * Two-tone progress bar: watched episodes in the theme accent, episodes sitting
+ * on disk but not yet watched in green behind them. The track is what's neither.
+ */
+function ProgressBar({
+  entry,
+  owned,
+  className,
+}: {
+  entry: MediaListEntry;
+  owned?: number[];
+  className?: string;
+}) {
   const total = entry.media.episodes ?? 0;
-  const pct = total > 0 ? Math.min(100, (entry.progress / total) * 100) : 0;
+  const watchedPct = total > 0 ? Math.min(100, (entry.progress / total) * 100) : 0;
+  const ownedCount = owned ? Math.min(owned.length, total || owned.length) : 0;
+  const downloadedPct =
+    total > 0 ? Math.min(100, (ownedCount / total) * 100) : 0;
+
   return (
-    <div className="h-1 overflow-hidden rounded-full bg-border/70">
+    <div
+      className={cn(
+        "relative h-1.5 overflow-hidden rounded-full bg-border/70",
+        className,
+      )}
+      title={
+        ownedCount > 0
+          ? `Watched ${entry.progress}/${total || "?"} · ${ownedCount} on disk`
+          : undefined
+      }
+    >
+      {downloadedPct > watchedPct && (
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-success/70"
+          style={{ width: `${downloadedPct}%` }}
+        />
+      )}
       <div
-        className={cn(
-          "h-full rounded-full transition-all",
-          episodesBehind(entry) > 0 ? "bg-warning" : "bg-primary",
-        )}
-        style={{ width: `${pct}%` }}
+        className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all"
+        style={{ width: `${watchedPct}%` }}
       />
     </div>
   );
@@ -139,7 +168,7 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
         >
           {mediaTitle(entry.media)}
         </Link>
-        <ProgressBar entry={entry} />
+        <ProgressBar entry={entry} owned={owned} />
         <div className="mt-auto flex items-center justify-between gap-1 pt-0.5">
           <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
             <Tv className="size-3 shrink-0" />
@@ -157,8 +186,6 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
 
 export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
   const ten = scoreToTen(entry.scoreRaw);
-  const total = entry.media.episodes ?? 0;
-  const pct = total > 0 ? Math.min(100, (entry.progress / total) * 100) : 0;
 
   return (
     <div
@@ -189,12 +216,7 @@ export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
           {mediaTitle(entry.media)}
         </Link>
         <div className="mt-1 flex items-center gap-2">
-          <div className="h-1 w-32 overflow-hidden rounded-full bg-border/70">
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
+          <ProgressBar entry={entry} owned={owned} className="w-32" />
           <span className="text-[11px] text-muted-foreground">
             {FORMAT_LABEL[entry.media.format]}
             {entry.media.seasonYear ? ` · ${entry.media.seasonYear}` : ""}
