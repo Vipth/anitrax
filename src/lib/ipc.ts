@@ -3,6 +3,7 @@ import type {
   Account,
   AppSettings,
   BudgetSnapshot,
+  CurrentSeason,
   EntryPatch,
   LibraryFile,
   LibraryFolder,
@@ -55,6 +56,11 @@ export const api = {
 
   searchAnime: (query: string, service?: ServiceKind) =>
     invoke<Media[]>("search_anime", { query, service }),
+
+  currentSeason: () => invoke<CurrentSeason>("current_season"),
+
+  getSeason: (year: number, season: string) =>
+    invoke<Media[]>("get_season", { year, season }),
 
   budgetSnapshot: () => invoke<BudgetSnapshot>("budget_snapshot"),
 

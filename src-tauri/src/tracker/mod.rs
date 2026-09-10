@@ -34,4 +34,13 @@ pub trait TrackerService: Send + Sync {
     /// Fetch many media objects by id in batched requests. `token` optional,
     /// same reasoning as `search`.
     async fn media_batch(&self, token: Option<&str>, ids: &[i64]) -> AppResult<Vec<Media>>;
+
+    /// One page (most-popular first) of the given broadcast season.
+    async fn season(
+        &self,
+        token: Option<&str>,
+        year: i32,
+        season: MediaSeason,
+        page: i32,
+    ) -> AppResult<SeasonPage>;
 }

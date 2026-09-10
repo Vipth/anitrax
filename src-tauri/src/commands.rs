@@ -153,6 +153,31 @@ pub async fn search_anime(
     sync::search(&state, service.as_deref(), &query).await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurrentSeason {
+    pub year: i32,
+    pub season: String,
+}
+
+#[tauri::command]
+pub fn current_season() -> CurrentSeason {
+    let (year, season) = sync::current_season();
+    CurrentSeason {
+        year,
+        season: season.as_str().to_string(),
+    }
+}
+
+#[tauri::command]
+pub async fn get_season(
+    state: State<'_, AppState>,
+    year: i32,
+    season: String,
+) -> AppResult<Vec<Media>> {
+    sync::season(&state, year, &season).await
+}
+
 #[tauri::command]
 pub async fn budget_snapshot(state: State<'_, AppState>) -> AppResult<BudgetSnapshot> {
     Ok(state.gateway().budget().await)

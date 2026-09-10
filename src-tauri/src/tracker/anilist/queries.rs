@@ -120,6 +120,29 @@ query ($q: String!, $perPage: Int!) {{
     )
 }
 
+/// One page of a broadcast season, most-popular first.
+pub fn season_page() -> String {
+    format!(
+        r#"
+query ($year: Int!, $season: MediaSeason!, $page: Int!, $perPage: Int!) {{
+  Page(page: $page, perPage: $perPage) {{
+    pageInfo {{ hasNextPage currentPage }}
+    media(
+      seasonYear: $year
+      season: $season
+      type: ANIME
+      sort: [POPULARITY_DESC]
+      isAdult: false
+    ) {{
+      {fields}
+    }}
+  }}
+}}
+"#,
+        fields = MEDIA_FIELDS
+    )
+}
+
 /// Build one aliased query that fetches many media objects in a single request.
 pub fn batch_media(ids: &[i64]) -> String {
     let selections: String = ids

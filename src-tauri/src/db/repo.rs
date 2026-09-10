@@ -1135,3 +1135,82 @@ pub async fn owned_media(db: &Db) -> AppResult<Vec<OwnedMedia>> {
     }
     Ok(out)
 }
+
+// --------------------------------------------------------------------------- //
+// Season browser (M4)
+// --------------------------------------------------------------------------- //
+
+/// Cached season listing (media ordered by popularity) plus when it was fetched.
+pub async fn season_cached(
+    db: &Db,
+    year: i32,
+    season: MediaSeason,
+) -> AppResult<Option<(Vec<Media>, String)>> {
+    let fetched_at: Option<String> = sqlx::query_scalar(
+        "SELECT fetched_at FROM season_state WHERE year = ?1 AND season = ?2",
+    )
+    .bind(year)
+    .bind(season.as_str())
+    .fetch_optional(db)
+    .await?;
+    let Some(fetched_at) = fetched_at else {
+        return Ok(None);
+    };
+
+    let rows = sqlx::query(
+        "SELECT m.service, m.id, m.title_romaji, m.title_english, m.title_native, m.format,
+            m.airing_status, m.description, m.episodes, m.duration, m.season, m.season_year,
+            m.cover_url, m.cover_color, m.banner_url, m.average_score, m.popularity,
+            m.genres_json, m.synonyms_json, m.start_date, m.site_url, m.next_episode, m.next_airing_at
+         FROM season_media s
+         JOIN media_cache m ON m.service = 'anilist' AND m.id = s.media_id
+         WHERE s.year = ?1 AND s.season = ?2
+         ORDER BY s.sort_order",
+    )
+    .bind(year)
+    .bind(season.as_str())
+    .fetch_all(db)
+    .await?;
+    Ok(Some((rows.iter().map(media_from_row).collect(), fetched_at)))
+}
+
+/// Replace a season's membership from a fresh pull. Media details go into
+/// `media_cache`; this records order and the fetch time.
+pub async fn replace_season(
+    db: &Db,
+    year: i32,
+    season: MediaSeason,
+    media: &[Media],
+) -> AppResult<()> {
+    let mut tx = db.begin().await?;
+    for m in media {
+        upsert_media_tx(&mut tx, m).await?;
+    }
+    sqlx::query("DELETE FROM season_media WHERE year = ?1 AND season = ?2")
+        .bind(year)
+        .bind(season.as_str())
+        .execute(&mut *tx)
+        .await?;
+    for (i, m) in media.iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO season_media (year, season, media_id, sort_order) VALUES (?1,?2,?3,?4)",
+        )
+        .bind(year)
+        .bind(season.as_str())
+        .bind(m.id.id)
+        .bind(i as i64)
+        .execute(&mut *tx)
+        .await?;
+    }
+    sqlx::query(
+        "INSERT INTO season_state (year, season, fetched_at) VALUES (?1,?2,?3)
+         ON CONFLICT(year, season) DO UPDATE SET fetched_at = excluded.fetched_at",
+    )
+    .bind(year)
+    .bind(season.as_str())
+    .bind(now())
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}

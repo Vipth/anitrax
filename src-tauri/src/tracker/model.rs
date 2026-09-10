@@ -272,6 +272,14 @@ pub struct EntryPatch {
     pub completed_at: Option<String>,
 }
 
+/// One page of a broadcast-season listing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeasonPage {
+    pub media: Vec<Media>,
+    pub has_next_page: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Viewer {

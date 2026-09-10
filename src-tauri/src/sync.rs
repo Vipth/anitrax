@@ -18,6 +18,12 @@ use crate::tracker::TrackerService;
 
 /// How long a cached media metadata row stays fresh before we'd refetch it.
 pub const META_TTL: Duration = Duration::from_secs(14 * 24 * 3600);
+/// The current / upcoming season keeps changing (scores, new additions); past
+/// seasons are effectively frozen.
+const SEASON_TTL_CURRENT: Duration = Duration::from_secs(12 * 3600);
+const SEASON_TTL_PAST: Duration = Duration::from_secs(30 * 24 * 3600);
+/// How many 50-title pages of a season to pull (popularity-sorted).
+const SEASON_MAX_PAGES: i32 = 3;
 /// Background refresh cadence (only while the window is focused).
 pub const BACKGROUND_SYNC_EVERY: Duration = Duration::from_secs(30 * 60);
 /// Debounce before the push worker flushes dirty rows.
@@ -256,6 +262,78 @@ pub async fn search(state: &AppState, service: Option<&str>, query: &str) -> App
 
 pub async fn last_sync(state: &AppState, service: Option<&str>) -> AppResult<Option<String>> {
     repo::last_full_sync(&state.db, parse_service(service)).await
+}
+
+// --------------------------------------------------------------------------- //
+// Season browser (M4). One paced, cached `Page` query set per (year, season).
+// --------------------------------------------------------------------------- //
+
+/// (year, season) for right now, AniList's calendar convention.
+pub fn current_season() -> (i32, MediaSeason) {
+    let now = chrono::Utc::now();
+    let year = now.format("%Y").to_string().parse().unwrap_or(2025);
+    let month: u32 = now.format("%m").to_string().parse().unwrap_or(1);
+    let season = match month {
+        1..=3 => MediaSeason::Winter,
+        4..=6 => MediaSeason::Spring,
+        7..=9 => MediaSeason::Summer,
+        _ => MediaSeason::Fall,
+    };
+    (year, season)
+}
+
+fn season_is_stale(year: i32, season: MediaSeason, fetched_at: &str) -> bool {
+    let (cy, cs) = current_season();
+    let ttl = if year > cy || (year == cy && season as u8 >= cs as u8) {
+        SEASON_TTL_CURRENT
+    } else {
+        SEASON_TTL_PAST
+    };
+    chrono::DateTime::parse_from_rfc3339(fetched_at)
+        .ok()
+        .and_then(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).to_std().ok())
+        .map(|age| age >= ttl)
+        .unwrap_or(true)
+}
+
+/// The season's anime, popularity-first. Cache-first with a TTL; a stale copy
+/// beats an error when AniList is unreachable.
+pub async fn season(state: &AppState, year: i32, season: &str) -> AppResult<Vec<Media>> {
+    let season = MediaSeason::from_opt_str(Some(&season.to_ascii_uppercase()))
+        .ok_or_else(|| AppError::other("Unknown season."))?;
+
+    if let Some((media, fetched_at)) = repo::season_cached(&state.db, year, season).await? {
+        if !season_is_stale(year, season, &fetched_at) {
+            return Ok(media);
+        }
+        return match refetch_season(state, year, season).await {
+            Ok(m) => Ok(m),
+            Err(_) => Ok(media),
+        };
+    }
+    refetch_season(state, year, season).await
+}
+
+async fn refetch_season(
+    state: &AppState,
+    year: i32,
+    season: MediaSeason,
+) -> AppResult<Vec<Media>> {
+    let token = auth::load_token(ServiceKind::AniList)?;
+    let mut all: Vec<Media> = Vec::new();
+    for page in 1..=SEASON_MAX_PAGES {
+        let result = state
+            .anilist
+            .season(token.as_deref(), year, season, page)
+            .await?;
+        let last = !result.has_next_page || result.media.is_empty();
+        all.extend(result.media);
+        if last {
+            break;
+        }
+    }
+    repo::replace_season(&state.db, year, season, &all).await?;
+    Ok(all)
 }
 
 // --------------------------------------------------------------------------- //

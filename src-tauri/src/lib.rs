@@ -46,6 +46,8 @@ pub fn run() {
             commands::edit_entry,
             commands::remove_entry,
             commands::search_anime,
+            commands::current_season,
+            commands::get_season,
             commands::budget_snapshot,
             commands::last_sync,
             commands::library_folders,

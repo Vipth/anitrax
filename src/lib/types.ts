@@ -117,6 +117,11 @@ export interface SyncReport {
   finishedAt: string;
 }
 
+export interface CurrentSeason {
+  year: number;
+  season: MediaSeasonName;
+}
+
 export interface LibraryFolder {
   id: number;
   path: string;

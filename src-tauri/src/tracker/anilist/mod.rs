@@ -166,4 +166,40 @@ impl TrackerService for AniList {
         }
         Ok(out)
     }
+
+    async fn season(
+        &self,
+        token: Option<&str>,
+        year: i32,
+        season: MediaSeason,
+        page: i32,
+    ) -> AppResult<SeasonPage> {
+        let data = self
+            .call(
+                queries::season_page(),
+                json!({
+                    "year": year,
+                    "season": season.as_str(),
+                    "page": page,
+                    "perPage": 50,
+                }),
+                token,
+            )
+            .await?;
+        let page_obj = data.get("Page");
+        let has_next_page = page_obj
+            .and_then(|p| p.get("pageInfo"))
+            .and_then(|i| i.get("hasNextPage"))
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        let media = page_obj
+            .and_then(|p| p.get("media"))
+            .and_then(|m| m.as_array())
+            .map(|a| a.iter().filter_map(map::media).collect())
+            .unwrap_or_default();
+        Ok(SeasonPage {
+            media,
+            has_next_page,
+        })
+    }
 }

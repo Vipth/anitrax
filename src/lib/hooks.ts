@@ -141,6 +141,23 @@ export function useOwnedMedia() {
   });
 }
 
+export function useCurrentSeason() {
+  return useQuery({
+    queryKey: qk.currentSeason,
+    queryFn: () => api.currentSeason(),
+    staleTime: 6 * 60 * 60_000,
+  });
+}
+
+export function useSeason(year: number, season: string, enabled = true) {
+  return useQuery({
+    queryKey: qk.season(year, season),
+    queryFn: () => api.getSeason(year, season),
+    enabled,
+    staleTime: 30 * 60_000,
+  });
+}
+
 export function useScanLibrary() {
   const qc = useQueryClient();
   return useMutation({
