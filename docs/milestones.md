@@ -119,10 +119,15 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 - `/rss` — manage feeds; rule builder: bind a rule to a tracked show, set
   quality / release group / episode range, destination path, qBittorrent category
+- **`DownloadClient` trait** — mirrors `TrackerService`: `add(magnet, dest,
+  category)` + `test_connection()`. `qbittorrent.rs` is the one impl for now; a
+  second client (Transmission `/transmission/rpc`, Deluge) is a new file, not a
+  refactor. The scheduler only ever sees the trait. ~20 lines up front so we
+  ship qBittorrent-only without painting ourselves in
 - `qbittorrent.rs` — Web API client (`/api/v2/auth/login`, `/api/v2/torrents/add`),
   connection test in Settings
 - `scheduler.rs` — `tokio` interval poll, evaluate rules, dedupe via `rss_history`,
-  add magnet to qBittorrent, desktop notification
+  hand the magnet to the configured `DownloadClient`, desktop notification
 - "Check feeds now" button + per-feed download history
 - Unit tests: feed item + rule → download / skip decision
 
