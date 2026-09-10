@@ -7,7 +7,6 @@ import {
   Keyboard,
   Library,
   Settings as SettingsIcon,
-  Sparkles,
 } from "lucide-react";
 import { ThemeSelect } from "./ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
@@ -31,9 +30,9 @@ export function Sidebar() {
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-4 py-4">
         <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <Sparkles className="size-4" />
+          <span className="font-serif text-lg font-bold leading-none">A</span>
         </div>
-        <span className="text-sm font-semibold">AniTrax</span>
+        <span className="text-sm font-semibold">niTrax</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
