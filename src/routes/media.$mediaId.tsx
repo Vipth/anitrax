@@ -171,6 +171,14 @@ function MediaDetailPage() {
                   label="Rating"
                 />
               )}
+              {ownedEpisodes.length > 0 && (
+                <FactTile
+                  icon={<HardDrive className="size-3.5" />}
+                  value={String(ownedEpisodes.length)}
+                  label="On disk"
+                  hint={`Ep ${episodeRanges(ownedEpisodes)}`}
+                />
+              )}
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -227,17 +235,6 @@ function MediaDetailPage() {
                 episode={media.nextAiring.episode}
               />
             )}
-
-            {ownedEpisodes.length > 0 && (
-              <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <HardDrive className="size-3.5" />
-                {ownedEpisodes.length} episode
-                {ownedEpisodes.length === 1 ? "" : "s"} on disk
-                <span className="text-muted-foreground/60">
-                  ({episodeRanges(ownedEpisodes)})
-                </span>
-              </p>
-            )}
           </div>
         </div>
 
@@ -262,13 +259,18 @@ function FactTile({
   icon,
   value,
   label,
+  hint,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
+  hint?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-raised px-3 py-2">
+    <div
+      className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-raised px-3 py-2"
+      title={hint}
+    >
       <span className="grid size-7 shrink-0 place-items-center rounded-md bg-border/50 text-muted-foreground">
         {icon}
       </span>

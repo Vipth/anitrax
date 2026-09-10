@@ -54,11 +54,11 @@ export function Countdown({
   const units = all.slice(start);
 
   return (
-    <div className="mt-4 inline-flex flex-col gap-1.5 rounded-lg border border-warning/30 bg-warning/[0.07] px-4 py-3">
+    <div className="mt-4 flex w-full flex-col gap-2 rounded-lg border border-warning/30 bg-warning/[0.07] px-4 py-3">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-warning/90">
         Episode {episode} airs in
       </span>
-      <div className="flex items-end gap-1.5">
+      <div className="flex items-end gap-2">
         {units.map((u, i) => (
           <React.Fragment key={u.label}>
             {i > 0 && (
