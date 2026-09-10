@@ -22,6 +22,7 @@ import { qk } from "@/lib/query";
 import { Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
 import { AiringBadge } from "@/components/media/AiringBadge";
+import { Countdown } from "@/components/media/Countdown";
 import { MediaPoster } from "@/components/media/MediaPoster";
 import { PlayButton } from "@/components/media/PlayButton";
 import { ProgressControl } from "@/components/media/ProgressControl";
@@ -30,7 +31,6 @@ import { useAddEntry, useLibrary, useOwnedMedia } from "@/lib/hooks";
 import {
   FORMAT_LABEL,
   STATUS_LABEL,
-  countdown,
   episodeRanges,
   mediaTitle,
   scoreToTen,
@@ -222,10 +222,10 @@ function MediaDetailPage() {
             </div>
 
             {media.nextAiring && (
-              <p className="mt-3 text-xs font-medium text-warning">
-                Episode {media.nextAiring.episode} airs in{" "}
-                {countdown(media.nextAiring.airingAt)}
-              </p>
+              <Countdown
+                airingAt={media.nextAiring.airingAt}
+                episode={media.nextAiring.episode}
+              />
             )}
 
             {ownedEpisodes.length > 0 && (
