@@ -5,10 +5,12 @@ use chrono::Utc;
 use serde_json::Value;
 use sqlx::Row;
 
+use crate::download::QbConfig;
 use crate::error::AppResult;
 use crate::library::matcher::IndexEntry;
 use crate::library::scanner::ScannedFile;
 use crate::library::{LibraryFile, LibraryFolder, LinkRule, OwnedMedia};
+use crate::rss::{Feed, HistoryEntry, Rule, RuleInput};
 use crate::tracker::model::*;
 
 use super::Db;
@@ -1273,6 +1275,319 @@ pub async fn replace_season(
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+// --------------------------------------------------------------------------- //
+// RSS auto-download (M5) — feeds
+// --------------------------------------------------------------------------- //
+
+fn feed_from_row(r: &sqlx::sqlite::SqliteRow) -> Feed {
+    Feed {
+        id: r.get("id"),
+        name: r.get("name"),
+        url: r.get("url"),
+        enabled: r.get::<i64, _>("enabled") != 0,
+        added_at: r.get("added_at"),
+        last_fetched_at: r.get("last_fetched_at"),
+        last_error: r.get("last_error"),
+    }
+}
+
+const FEED_SELECT: &str =
+    "SELECT id, name, url, enabled, added_at, last_fetched_at, last_error FROM rss_feed";
+
+pub async fn list_feeds(db: &Db) -> AppResult<Vec<Feed>> {
+    let rows = sqlx::query(&format!("{FEED_SELECT} ORDER BY added_at"))
+        .fetch_all(db)
+        .await?;
+    Ok(rows.iter().map(feed_from_row).collect())
+}
+
+pub async fn enabled_feeds(db: &Db) -> AppResult<Vec<Feed>> {
+    let rows = sqlx::query(&format!("{FEED_SELECT} WHERE enabled = 1 ORDER BY added_at"))
+        .fetch_all(db)
+        .await?;
+    Ok(rows.iter().map(feed_from_row).collect())
+}
+
+pub async fn add_feed(db: &Db, name: &str, url: &str) -> AppResult<Feed> {
+    sqlx::query(
+        "INSERT INTO rss_feed (name, url, enabled, added_at) VALUES (?1, ?2, 1, ?3)
+         ON CONFLICT(url) DO UPDATE SET name = excluded.name",
+    )
+    .bind(name)
+    .bind(url)
+    .bind(now())
+    .execute(db)
+    .await?;
+    let row = sqlx::query(&format!("{FEED_SELECT} WHERE url = ?1"))
+        .bind(url)
+        .fetch_one(db)
+        .await?;
+    Ok(feed_from_row(&row))
+}
+
+pub async fn remove_feed(db: &Db, id: i64) -> AppResult<()> {
+    sqlx::query("DELETE FROM rss_feed WHERE id = ?1")
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn set_feed_enabled(db: &Db, id: i64, enabled: bool) -> AppResult<()> {
+    sqlx::query("UPDATE rss_feed SET enabled = ?2 WHERE id = ?1")
+        .bind(id)
+        .bind(i64::from(enabled))
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+/// Stamp a fetch attempt: `error = None` clears the last error, `Some` records it.
+pub async fn mark_feed_fetched(db: &Db, id: i64, error: Option<&str>) -> AppResult<()> {
+    sqlx::query("UPDATE rss_feed SET last_fetched_at = ?2, last_error = ?3 WHERE id = ?1")
+        .bind(id)
+        .bind(now())
+        .bind(error)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+// --------------------------------------------------------------------------- //
+// RSS auto-download — rules
+// --------------------------------------------------------------------------- //
+
+const RULE_SELECT: &str = "SELECT r.id, r.name, r.enabled, r.feed_id, r.service, r.media_id,
+    r.title_contains, r.release_group, r.min_resolution, r.episode_from, r.episode_to,
+    r.dest_path, r.category, r.paused, r.created_at,
+    m.title_romaji, m.title_english, m.title_native
+ FROM rss_rule r
+ LEFT JOIN media_cache m ON m.service = r.service AND m.id = r.media_id";
+
+fn rule_from_row(r: &sqlx::sqlite::SqliteRow) -> Rule {
+    let media_title = match (
+        r.get::<Option<String>, _>("title_romaji"),
+        r.get::<Option<String>, _>("title_english"),
+        r.get::<Option<String>, _>("title_native"),
+    ) {
+        (None, None, None) => None,
+        (romaji, english, native) => Some(MediaTitle {
+            romaji,
+            english,
+            native,
+        }),
+    };
+    Rule {
+        id: r.get("id"),
+        name: r.get("name"),
+        enabled: r.get::<i64, _>("enabled") != 0,
+        feed_id: r.get("feed_id"),
+        service: r.get("service"),
+        media_id: r.get("media_id"),
+        title_contains: r.get("title_contains"),
+        release_group: r.get("release_group"),
+        min_resolution: r.get("min_resolution"),
+        episode_from: r.get("episode_from"),
+        episode_to: r.get("episode_to"),
+        dest_path: r.get("dest_path"),
+        category: r.get("category"),
+        paused: r.get::<i64, _>("paused") != 0,
+        created_at: r.get("created_at"),
+        media_title,
+    }
+}
+
+fn clean_opt(s: &Option<String>) -> Option<String> {
+    s.as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+pub async fn list_rules(db: &Db) -> AppResult<Vec<Rule>> {
+    let rows = sqlx::query(&format!("{RULE_SELECT} ORDER BY r.created_at"))
+        .fetch_all(db)
+        .await?;
+    Ok(rows.iter().map(rule_from_row).collect())
+}
+
+pub async fn get_rule(db: &Db, id: i64) -> AppResult<Option<Rule>> {
+    let row = sqlx::query(&format!("{RULE_SELECT} WHERE r.id = ?1"))
+        .bind(id)
+        .fetch_optional(db)
+        .await?;
+    Ok(row.as_ref().map(rule_from_row))
+}
+
+/// Rules that apply to `feed_id` — those bound to it plus the unbound (all-feed) ones.
+pub async fn rules_for_feed(db: &Db, feed_id: i64) -> AppResult<Vec<Rule>> {
+    let rows = sqlx::query(&format!(
+        "{RULE_SELECT} WHERE r.feed_id IS NULL OR r.feed_id = ?1"
+    ))
+    .bind(feed_id)
+    .fetch_all(db)
+    .await?;
+    Ok(rows.iter().map(rule_from_row).collect())
+}
+
+pub async fn insert_rule(db: &Db, input: &RuleInput) -> AppResult<Rule> {
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO rss_rule
+         (name, enabled, feed_id, service, media_id, title_contains, release_group,
+          min_resolution, episode_from, episode_to, dest_path, category, paused, created_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
+         RETURNING id",
+    )
+    .bind(input.name.trim())
+    .bind(i64::from(input.enabled))
+    .bind(input.feed_id)
+    .bind(clean_opt(&input.service))
+    .bind(input.media_id)
+    .bind(clean_opt(&input.title_contains))
+    .bind(clean_opt(&input.release_group))
+    .bind(input.min_resolution)
+    .bind(input.episode_from)
+    .bind(input.episode_to)
+    .bind(clean_opt(&input.dest_path))
+    .bind(clean_opt(&input.category))
+    .bind(i64::from(input.paused))
+    .bind(now())
+    .fetch_one(db)
+    .await?;
+    get_rule(db, id)
+        .await?
+        .ok_or_else(|| crate::error::AppError::other("rule vanished after insert"))
+}
+
+pub async fn update_rule(db: &Db, id: i64, input: &RuleInput) -> AppResult<Rule> {
+    sqlx::query(
+        "UPDATE rss_rule SET
+           name = ?2, enabled = ?3, feed_id = ?4, service = ?5, media_id = ?6,
+           title_contains = ?7, release_group = ?8, min_resolution = ?9,
+           episode_from = ?10, episode_to = ?11, dest_path = ?12, category = ?13, paused = ?14
+         WHERE id = ?1",
+    )
+    .bind(id)
+    .bind(input.name.trim())
+    .bind(i64::from(input.enabled))
+    .bind(input.feed_id)
+    .bind(clean_opt(&input.service))
+    .bind(input.media_id)
+    .bind(clean_opt(&input.title_contains))
+    .bind(clean_opt(&input.release_group))
+    .bind(input.min_resolution)
+    .bind(input.episode_from)
+    .bind(input.episode_to)
+    .bind(clean_opt(&input.dest_path))
+    .bind(clean_opt(&input.category))
+    .bind(i64::from(input.paused))
+    .execute(db)
+    .await?;
+    get_rule(db, id)
+        .await?
+        .ok_or_else(|| crate::error::AppError::other("no rule with that id"))
+}
+
+pub async fn delete_rule(db: &Db, id: i64) -> AppResult<()> {
+    sqlx::query("DELETE FROM rss_rule WHERE id = ?1")
+        .bind(id)
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn set_rule_enabled(db: &Db, id: i64, enabled: bool) -> AppResult<()> {
+    sqlx::query("UPDATE rss_rule SET enabled = ?2 WHERE id = ?1")
+        .bind(id)
+        .bind(i64::from(enabled))
+        .execute(db)
+        .await?;
+    Ok(())
+}
+
+// --------------------------------------------------------------------------- //
+// RSS auto-download — download history / dedupe
+// --------------------------------------------------------------------------- //
+
+/// Has this feed-item guid already been grabbed (by any rule)?
+pub async fn history_has(db: &Db, guid: &str) -> AppResult<bool> {
+    let hit: Option<i64> = sqlx::query_scalar("SELECT 1 FROM rss_history WHERE guid = ?1")
+        .bind(guid)
+        .fetch_optional(db)
+        .await?;
+    Ok(hit.is_some())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn record_history(
+    db: &Db,
+    guid: &str,
+    rule_id: i64,
+    feed_id: i64,
+    title: &str,
+    link: &str,
+    episode: Option<i64>,
+) -> AppResult<()> {
+    sqlx::query(
+        "INSERT INTO rss_history (guid, rule_id, feed_id, title, link, episode, downloaded_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7)
+         ON CONFLICT(guid) DO NOTHING",
+    )
+    .bind(guid)
+    .bind(rule_id)
+    .bind(feed_id)
+    .bind(title)
+    .bind(link)
+    .bind(episode)
+    .bind(now())
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_history(db: &Db, limit: i64) -> AppResult<Vec<HistoryEntry>> {
+    let rows = sqlx::query(
+        "SELECT h.guid, h.rule_id, h.feed_id, h.title, h.link, h.episode, h.downloaded_at,
+            r.name AS rule_name
+         FROM rss_history h
+         LEFT JOIN rss_rule r ON r.id = h.rule_id
+         ORDER BY h.downloaded_at DESC
+         LIMIT ?1",
+    )
+    .bind(limit)
+    .fetch_all(db)
+    .await?;
+    Ok(rows
+        .iter()
+        .map(|r| HistoryEntry {
+            guid: r.get("guid"),
+            rule_id: r.get("rule_id"),
+            rule_name: r.get("rule_name"),
+            feed_id: r.get("feed_id"),
+            title: r.get("title"),
+            link: r.get("link"),
+            episode: r.get("episode"),
+            downloaded_at: r.get("downloaded_at"),
+        })
+        .collect())
+}
+
+// --------------------------------------------------------------------------- //
+// RSS auto-download — download client config
+// --------------------------------------------------------------------------- //
+
+const QB_CONFIG_KEY: &str = "qbittorrent_config";
+
+pub async fn get_qb_config(db: &Db) -> AppResult<QbConfig> {
+    Ok(get_setting(db, QB_CONFIG_KEY)
+        .await?
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default())
+}
+
+pub async fn set_qb_config(db: &Db, cfg: &QbConfig) -> AppResult<()> {
+    set_setting(db, QB_CONFIG_KEY, &serde_json::to_value(cfg)?).await
 }
 
 #[cfg(test)]

@@ -1,8 +1,10 @@
 mod auth;
 mod commands;
 mod db;
+mod download;
 mod error;
 mod library;
+mod rss;
 mod state;
 mod stats;
 mod sync;
@@ -64,6 +66,21 @@ pub fn run() {
             commands::unlink_library_file,
             commands::library_link_rules,
             commands::delete_link_rule,
+            commands::rss_feeds,
+            commands::add_rss_feed,
+            commands::remove_rss_feed,
+            commands::set_rss_feed_enabled,
+            commands::rss_rules,
+            commands::save_rss_rule,
+            commands::delete_rss_rule,
+            commands::set_rss_rule_enabled,
+            commands::rss_history,
+            commands::check_feeds_now,
+            commands::get_qb_config,
+            commands::set_qb_config,
+            commands::test_qb_connection,
+            commands::rss_poll_enabled,
+            commands::set_rss_poll_enabled,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -204,6 +221,37 @@ pub fn run() {
                             }
                             Err(e) => tracing::warn!(?e, "watched-folder rescan error"),
                         }
+                    }
+                });
+            }
+
+            // RSS auto-download: poll enabled feeds on a slow timer, add matches
+            // to the download client. Never touches AniList. Off when the user
+            // disables the master switch in Settings.
+            {
+                let h = handle.clone();
+                let s = state.clone();
+                tauri::async_runtime::spawn(async move {
+                    // A short delay so a launch check doesn't race the first sync.
+                    tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+                    loop {
+                        let on = db::repo::get_bool_setting(
+                            &s.db,
+                            rss::scheduler::RSS_POLL_KEY,
+                            true,
+                        )
+                        .await
+                        .unwrap_or(true);
+                        if on {
+                            match rss::scheduler::check_all_feeds(&s, &h).await {
+                                Ok(r) if r.added > 0 => {
+                                    let _ = h.emit("rss-updated", ());
+                                }
+                                Ok(_) => {}
+                                Err(e) => tracing::warn!(?e, "rss poll error"),
+                            }
+                        }
+                        tokio::time::sleep(rss::scheduler::POLL_EVERY).await;
                     }
                 });
             }

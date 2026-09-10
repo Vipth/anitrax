@@ -17,10 +17,15 @@ import { Card, Input } from "@/components/ui/primitives";
 import { Switch } from "@/components/ui/switch";
 import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
-import { useLibraryFolders, useScanLibrary, useSettings } from "@/lib/hooks";
+import {
+  useLibraryFolders,
+  useQbConfig,
+  useScanLibrary,
+  useSettings,
+} from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
 import { toast } from "@/stores/toast";
-import { errorMessage, type AppSettings } from "@/lib/types";
+import { errorMessage, type AppSettings, type QbConfig } from "@/lib/types";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -80,6 +85,10 @@ function SettingsPage() {
 
       <Section title="Watched folders">
         <WatchedFolders />
+      </Section>
+
+      <Section title="Downloads (qBittorrent)">
+        <QbittorrentSettings />
       </Section>
 
       <Section title="Appearance">
@@ -408,6 +417,98 @@ function WatchedFolders() {
           />
           Rescan now
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function QbittorrentSettings() {
+  const { data: saved, isLoading } = useQbConfig();
+  const qc = useQueryClient();
+  const [cfg, setCfg] = React.useState<QbConfig>({
+    baseUrl: "",
+    username: "",
+    password: "",
+  });
+  const [tested, setTested] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (saved) setCfg(saved);
+  }, [saved]);
+
+  const test = useMutation({
+    mutationFn: () => api.testQbConnection(cfg),
+    onSuccess: (version) => {
+      setTested(version);
+      toast.success("Connected", `qBittorrent ${version}`);
+    },
+    onError: (e) => {
+      setTested(null);
+      toast.error("Couldn't connect", errorMessage(e));
+    },
+  });
+
+  const save = useMutation({
+    mutationFn: () => api.setQbConfig(cfg),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.qbConfig });
+      toast.success("Saved");
+    },
+    onError: (e) => toast.error("Couldn't save", errorMessage(e)),
+  });
+
+  const field = (k: keyof QbConfig, v: string) => {
+    setCfg((c) => ({ ...c, [k]: v }));
+    setTested(null);
+  };
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading…</p>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Where RSS rules send matched torrents. Enable the Web UI in qBittorrent
+        (Tools → Options → Web UI) and enter its address and login here.
+      </p>
+      <div className="space-y-2">
+        <Input
+          value={cfg.baseUrl}
+          onChange={(e) => field("baseUrl", e.target.value)}
+          placeholder="http://localhost:8080"
+        />
+        <div className="flex gap-2">
+          <Input
+            value={cfg.username}
+            onChange={(e) => field("username", e.target.value)}
+            placeholder="Username"
+          />
+          <Input
+            value={cfg.password}
+            onChange={(e) => field("password", e.target.value)}
+            placeholder="Password"
+            type="password"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => test.mutate()}
+          disabled={test.isPending || !cfg.baseUrl.trim()}
+        >
+          Test connection
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => save.mutate()}
+          disabled={save.isPending}
+        >
+          Save
+        </Button>
+        {tested && (
+          <span className="text-xs text-success">Connected · v{tested}</span>
+        )}
       </div>
     </div>
   );

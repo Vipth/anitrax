@@ -6,8 +6,10 @@ use tauri::State;
 
 use crate::auth;
 use crate::db::repo::{self, Account};
+use crate::download::{qbittorrent::QbClient, DownloadClient, QbConfig};
 use crate::error::AppResult;
 use crate::library::{LibraryFile, LibraryFolder, LinkRule, OwnedMedia, ScanReport};
+use crate::rss::{scheduler, CheckReport, Feed, HistoryEntry, Rule, RuleInput};
 use crate::state::AppState;
 use crate::sync::{self, SyncReport};
 use crate::tracker::anilist::BudgetSnapshot;
@@ -285,4 +287,125 @@ pub async fn library_link_rules(state: State<'_, AppState>) -> AppResult<Vec<Lin
 #[tauri::command]
 pub async fn delete_link_rule(state: State<'_, AppState>, id: i64) -> AppResult<()> {
     sync::delete_link_rule(&state, id).await
+}
+
+// --------------------------------------------------------------------------- //
+// RSS auto-download (M5)
+// --------------------------------------------------------------------------- //
+
+#[tauri::command]
+pub async fn rss_feeds(state: State<'_, AppState>) -> AppResult<Vec<Feed>> {
+    repo::list_feeds(&state.db).await
+}
+
+#[tauri::command]
+pub async fn add_rss_feed(
+    state: State<'_, AppState>,
+    name: String,
+    url: String,
+) -> AppResult<Feed> {
+    let url = url.trim();
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(crate::error::AppError::other(
+            "Enter the feed's http(s) URL.",
+        ));
+    }
+    let name = name.trim();
+    let name = if name.is_empty() { url } else { name };
+    repo::add_feed(&state.db, name, url).await
+}
+
+#[tauri::command]
+pub async fn remove_rss_feed(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    repo::remove_feed(&state.db, id).await
+}
+
+#[tauri::command]
+pub async fn set_rss_feed_enabled(
+    state: State<'_, AppState>,
+    id: i64,
+    enabled: bool,
+) -> AppResult<()> {
+    repo::set_feed_enabled(&state.db, id, enabled).await
+}
+
+#[tauri::command]
+pub async fn rss_rules(state: State<'_, AppState>) -> AppResult<Vec<Rule>> {
+    repo::list_rules(&state.db).await
+}
+
+/// Create (`id` omitted) or update (`id` set) a rule.
+#[tauri::command]
+pub async fn save_rss_rule(
+    state: State<'_, AppState>,
+    id: Option<i64>,
+    rule: RuleInput,
+) -> AppResult<Rule> {
+    if rule.name.trim().is_empty() {
+        return Err(crate::error::AppError::other("Give the rule a name."));
+    }
+    match id {
+        Some(id) => repo::update_rule(&state.db, id, &rule).await,
+        None => repo::insert_rule(&state.db, &rule).await,
+    }
+}
+
+#[tauri::command]
+pub async fn delete_rss_rule(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    repo::delete_rule(&state.db, id).await
+}
+
+#[tauri::command]
+pub async fn set_rss_rule_enabled(
+    state: State<'_, AppState>,
+    id: i64,
+    enabled: bool,
+) -> AppResult<()> {
+    repo::set_rule_enabled(&state.db, id, enabled).await
+}
+
+#[tauri::command]
+pub async fn rss_history(
+    state: State<'_, AppState>,
+    limit: Option<i64>,
+) -> AppResult<Vec<HistoryEntry>> {
+    repo::list_history(&state.db, limit.unwrap_or(100).clamp(1, 500)).await
+}
+
+#[tauri::command]
+pub async fn check_feeds_now(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<CheckReport> {
+    scheduler::check_all_feeds(&state, &app).await
+}
+
+#[tauri::command]
+pub async fn get_qb_config(state: State<'_, AppState>) -> AppResult<QbConfig> {
+    repo::get_qb_config(&state.db).await
+}
+
+#[tauri::command]
+pub async fn set_qb_config(state: State<'_, AppState>, config: QbConfig) -> AppResult<()> {
+    repo::set_qb_config(&state.db, &config).await
+}
+
+/// Test a connection with the given (possibly unsaved) settings; returns the
+/// qBittorrent version string on success.
+#[tauri::command]
+pub async fn test_qb_connection(config: QbConfig) -> AppResult<String> {
+    QbClient::new(config)?.test_connection().await
+}
+
+#[tauri::command]
+pub async fn rss_poll_enabled(state: State<'_, AppState>) -> AppResult<bool> {
+    repo::get_bool_setting(&state.db, scheduler::RSS_POLL_KEY, true).await
+}
+
+#[tauri::command]
+pub async fn set_rss_poll_enabled(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, scheduler::RSS_POLL_KEY, enabled).await
 }

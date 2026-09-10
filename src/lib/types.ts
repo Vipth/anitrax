@@ -195,6 +195,78 @@ export interface ScanReport {
   finishedAt: string;
 }
 
+// RSS auto-download (M5) — mirrors `src-tauri/src/rss/mod.rs`.
+
+export interface RssFeed {
+  id: number;
+  name: string;
+  url: string;
+  enabled: boolean;
+  addedAt: string;
+  lastFetchedAt: string | null;
+  lastError: string | null;
+}
+
+export interface RssRule {
+  id: number;
+  name: string;
+  enabled: boolean;
+  feedId: number | null;
+  service: string | null;
+  mediaId: number | null;
+  titleContains: string | null;
+  releaseGroup: string | null;
+  minResolution: number | null;
+  episodeFrom: number | null;
+  episodeTo: number | null;
+  destPath: string | null;
+  category: string | null;
+  paused: boolean;
+  createdAt: string;
+  mediaTitle: MediaTitle | null;
+}
+
+export interface RssRuleInput {
+  name: string;
+  enabled: boolean;
+  feedId: number | null;
+  service: string | null;
+  mediaId: number | null;
+  titleContains: string | null;
+  releaseGroup: string | null;
+  minResolution: number | null;
+  episodeFrom: number | null;
+  episodeTo: number | null;
+  destPath: string | null;
+  category: string | null;
+  paused: boolean;
+}
+
+export interface RssHistoryEntry {
+  guid: string;
+  ruleId: number | null;
+  ruleName: string | null;
+  feedId: number | null;
+  title: string;
+  link: string;
+  episode: number | null;
+  downloadedAt: string;
+}
+
+export interface RssCheckReport {
+  feedsChecked: number;
+  itemsSeen: number;
+  added: number;
+  errors: string[];
+  finishedAt: string;
+}
+
+export interface QbConfig {
+  baseUrl: string;
+  username: string;
+  password: string;
+}
+
 export interface BudgetSnapshot {
   usedLastMinute: number;
   selfLimit: number;

@@ -16,6 +16,12 @@ pub struct AppState {
     pub anilist: Arc<AniList>,
     pub push: PushSignal,
     pub watcher: LibraryWatcherHandle,
+    /// General-purpose HTTP client for non-AniList traffic (RSS feed fetches).
+    /// AniList never uses this — it goes through the paced gateway.
+    pub http: reqwest::Client,
+    /// Serialises RSS feed checks so the timer and a manual "check now" can't
+    /// run concurrently and double-add a torrent.
+    pub rss_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl AppState {
@@ -30,11 +36,18 @@ impl AppState {
         let gateway = AniListGateway::spawn();
         let anilist = Arc::new(AniList::new(gateway));
 
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            .build()
+            .unwrap_or_default();
+
         Ok(Self {
             db,
             anilist,
             push: PushSignal::new(),
             watcher: LibraryWatcherHandle::new(),
+            http,
+            rss_lock: Arc::new(tokio::sync::Mutex::new(())),
         })
     }
 

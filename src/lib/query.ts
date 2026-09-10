@@ -46,4 +46,9 @@ export const qk = {
   currentSeason: ["currentSeason"] as const,
   season: (year: number, season: string) => ["season", year, season] as const,
   stats: ["stats"] as const,
+  rssFeeds: ["rssFeeds"] as const,
+  rssRules: ["rssRules"] as const,
+  rssHistory: ["rssHistory"] as const,
+  qbConfig: ["qbConfig"] as const,
+  rssPollEnabled: ["rssPollEnabled"] as const,
 };

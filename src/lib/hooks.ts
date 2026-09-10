@@ -181,6 +181,70 @@ export function useScanLibrary() {
   });
 }
 
+export function useRssFeeds() {
+  return useQuery({
+    queryKey: qk.rssFeeds,
+    queryFn: () => api.rssFeeds(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRssRules() {
+  return useQuery({
+    queryKey: qk.rssRules,
+    queryFn: () => api.rssRules(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRssHistory() {
+  return useQuery({
+    queryKey: qk.rssHistory,
+    queryFn: () => api.rssHistory(),
+    staleTime: 60_000,
+  });
+}
+
+export function useQbConfig() {
+  return useQuery({ queryKey: qk.qbConfig, queryFn: () => api.getQbConfig() });
+}
+
+export function useRssPollEnabled() {
+  return useQuery({
+    queryKey: qk.rssPollEnabled,
+    queryFn: () => api.rssPollEnabled(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSetRssPollEnabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => api.setRssPollEnabled(enabled),
+    onMutate: async (enabled) => {
+      await qc.cancelQueries({ queryKey: qk.rssPollEnabled });
+      const prev = qc.getQueryData<boolean>(qk.rssPollEnabled);
+      qc.setQueryData(qk.rssPollEnabled, enabled);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(qk.rssPollEnabled, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.rssPollEnabled }),
+  });
+}
+
+export function useCheckFeeds() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.checkFeedsNow(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.rssFeeds });
+      qc.invalidateQueries({ queryKey: qk.rssHistory });
+    },
+  });
+}
+
 /** Re-fetch library/accounts when the backend emits change events. */
 export function useBackendEvents() {
   const qc = useQueryClient();
@@ -199,6 +263,10 @@ export function useBackendEvents() {
         qc.invalidateQueries({ queryKey: qk.libraryFiles });
         qc.invalidateQueries({ queryKey: qk.libraryFolders });
         qc.invalidateQueries({ queryKey: qk.libraryOwned });
+      }),
+      listen("rss-updated", () => {
+        qc.invalidateQueries({ queryKey: qk.rssHistory });
+        qc.invalidateQueries({ queryKey: qk.rssFeeds });
       }),
     ];
     return () => {

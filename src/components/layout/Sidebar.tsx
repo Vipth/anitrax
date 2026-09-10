@@ -6,6 +6,7 @@ import {
   HardDrive,
   Keyboard,
   Library,
+  Rss,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { ThemeSelect } from "./ThemeSelect";
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/discover", label: "Discover", icon: Compass, exact: false },
   { to: "/seasons", label: "Seasons", icon: CalendarRange, exact: false },
   { to: "/library-local", label: "Local files", icon: HardDrive, exact: false },
+  { to: "/rss", label: "RSS", icon: Rss, exact: false },
   { to: "/stats", label: "Stats", icon: BarChart3, exact: false },
   { to: "/settings", label: "Settings", icon: SettingsIcon, exact: false },
 ] as const;

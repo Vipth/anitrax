@@ -115,21 +115,38 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M5 — RSS auto-download (qBittorrent)
+## M5 — RSS auto-download (qBittorrent)  *(built 2026-09-10, acceptance owed)*
 
-- `/rss` — manage feeds; rule builder: bind a rule to a tracked show, set
-  quality / release group / episode range, destination path, qBittorrent category
-- **`DownloadClient` trait** — mirrors `TrackerService`: `add(magnet, dest,
-  category)` + `test_connection()`. `qbittorrent.rs` is the one impl for now; a
-  second client (Transmission `/transmission/rpc`, Deluge) is a new file, not a
-  refactor. The scheduler only ever sees the trait. ~20 lines up front so we
-  ship qBittorrent-only without painting ourselves in
-- `qbittorrent.rs` — Web API client (`/api/v2/auth/login`, `/api/v2/torrents/add`),
-  connection test in Settings
-- `scheduler.rs` — `tokio` interval poll, evaluate rules, dedupe via `rss_history`,
-  hand the magnet to the configured `DownloadClient`, desktop notification
-- "Check feeds now" button + per-feed download history
-- Unit tests: feed item + rule → download / skip decision
+- ✅ `/rss` — feed manager (add / enable / remove, last-check time + last error)
+  and rule builder: bind a rule to a tracked show, set title-contains, release
+  group, min resolution, episode range, save path, qBittorrent category, "add
+  paused". Recent-downloads list. Auto-check toggle (default on).
+- ✅ **`DownloadClient` trait** (`src-tauri/src/download/`) — `add(AddTorrent)` +
+  `test_connection()`. `qbittorrent.rs` is the only impl; the scheduler only
+  sees the trait, so Transmission / Deluge is a new file, not a refactor.
+- ✅ `qbittorrent.rs` — Web API v2 client: cookie-`SID` login (lazy, 30-min
+  reuse, one re-auth + retry on 403), `torrents/add` by URL/magnet with
+  savepath + category, `Referer` header for non-localhost, connection test in
+  Settings (returns the version string).
+- ✅ `rss/feeds.rs` — RSS 2.0 fetch + parse (`rss` crate); link from
+  `<enclosure>` then `<link>`, guid from `<guid>` then `<link>`. 4 MB cap.
+  Atom not supported.
+- ✅ `rss/rules.rs` — **pure** `evaluate(rule, parsed) -> Decision`; the release
+  title is run through the M3 anitomy parser for episode / resolution / group.
+  8 unit tests.
+- ✅ `rss/scheduler.rs` — `check_all_feeds`: poll enabled feeds, evaluate the
+  rules bound to each (feed-specific + all-feed), dedupe via `rss_history`
+  (guid spent regardless of rule), hand matches to the client, desktop
+  notification. Serialised by a mutex so the 15-min timer and "Check now"
+  can't double-add. Runs on a timer in `lib.rs`; off when the master toggle is.
+- ✅ Migration `0006_rss` (`rss_feed` / `rss_rule` / `rss_history`); qBittorrent
+  config in `app_setting` as one JSON blob, never the torrent password in a
+  column beyond that.
+- ✅ 12 RSS unit tests (feeds parse + rule decisions); `cargo test` + `vitest`
+  green.
+- ⏳ **Acceptance owed** — needs a live qBittorrent + a real feed: confirm a rule
+  adds exactly one torrent with the right category / save path, and a second
+  poll doesn't re-add it.
 
 ---
 

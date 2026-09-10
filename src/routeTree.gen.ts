@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as LibraryLocalRouteImport } from './routes/library-local'
+import { Route as RssRouteImport } from './routes/rss'
 import { Route as SeasonsRouteImport } from './routes/seasons'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
@@ -30,6 +31,11 @@ const DiscoverRoute = DiscoverRouteImport.update({
 const LibraryLocalRoute = LibraryLocalRouteImport.update({
   id: '/library-local',
   path: '/library-local',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RssRoute = RssRouteImport.update({
+  id: '/rss',
+  path: '/rss',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SeasonsRoute = SeasonsRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
   '/library-local': typeof LibraryLocalRoute
+  '/rss': typeof RssRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
   '/library-local': typeof LibraryLocalRoute
+  '/rss': typeof RssRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
   '/library-local': typeof LibraryLocalRoute
+  '/rss': typeof RssRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/discover'
     | '/library-local'
+    | '/rss'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/discover'
     | '/library-local'
+    | '/rss'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/discover'
     | '/library-local'
+    | '/rss'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiscoverRoute: typeof DiscoverRoute
   LibraryLocalRoute: typeof LibraryLocalRoute
+  RssRoute: typeof RssRoute
   SeasonsRoute: typeof SeasonsRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/library-local'
       fullPath: '/library-local'
       preLoaderRoute: typeof LibraryLocalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rss': {
+      id: '/rss'
+      path: '/rss'
+      fullPath: '/rss'
+      preLoaderRoute: typeof RssRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/seasons': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoverRoute: DiscoverRoute,
   LibraryLocalRoute: LibraryLocalRoute,
+  RssRoute: RssRoute,
   SeasonsRoute: SeasonsRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,

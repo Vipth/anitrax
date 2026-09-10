@@ -40,6 +40,7 @@ function RootLayout() {
     "/discover",
     "/seasons",
     "/library-local",
+    "/rss",
     "/stats",
     "/settings",
   ];
@@ -88,9 +89,14 @@ function RootLayout() {
       "5": (e) => {
         if (helpOpen) return;
         e.preventDefault();
-        navigate({ to: "/stats" });
+        navigate({ to: "/rss" });
       },
       "6": (e) => {
+        if (helpOpen) return;
+        e.preventDefault();
+        navigate({ to: "/stats" });
+      },
+      "7": (e) => {
         if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/settings" });

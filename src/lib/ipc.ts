@@ -11,6 +11,12 @@ import type {
   Media,
   MediaListEntry,
   OwnedMedia,
+  QbConfig,
+  RssCheckReport,
+  RssFeed,
+  RssHistoryEntry,
+  RssRule,
+  RssRuleInput,
   ScanReport,
   ServiceKind,
   StatsData,
@@ -105,4 +111,42 @@ export const api = {
   libraryLinkRules: () => invoke<LinkRule[]>("library_link_rules"),
 
   deleteLinkRule: (id: number) => invoke<void>("delete_link_rule", { id }),
+
+  // RSS auto-download (M5)
+  rssFeeds: () => invoke<RssFeed[]>("rss_feeds"),
+
+  addRssFeed: (name: string, url: string) =>
+    invoke<RssFeed>("add_rss_feed", { name, url }),
+
+  removeRssFeed: (id: number) => invoke<void>("remove_rss_feed", { id }),
+
+  setRssFeedEnabled: (id: number, enabled: boolean) =>
+    invoke<void>("set_rss_feed_enabled", { id, enabled }),
+
+  rssRules: () => invoke<RssRule[]>("rss_rules"),
+
+  saveRssRule: (rule: RssRuleInput, id?: number) =>
+    invoke<RssRule>("save_rss_rule", { id: id ?? null, rule }),
+
+  deleteRssRule: (id: number) => invoke<void>("delete_rss_rule", { id }),
+
+  setRssRuleEnabled: (id: number, enabled: boolean) =>
+    invoke<void>("set_rss_rule_enabled", { id, enabled }),
+
+  rssHistory: (limit?: number) =>
+    invoke<RssHistoryEntry[]>("rss_history", { limit: limit ?? null }),
+
+  checkFeedsNow: () => invoke<RssCheckReport>("check_feeds_now"),
+
+  getQbConfig: () => invoke<QbConfig>("get_qb_config"),
+
+  setQbConfig: (config: QbConfig) => invoke<void>("set_qb_config", { config }),
+
+  testQbConnection: (config: QbConfig) =>
+    invoke<string>("test_qb_connection", { config }),
+
+  rssPollEnabled: () => invoke<boolean>("rss_poll_enabled"),
+
+  setRssPollEnabled: (enabled: boolean) =>
+    invoke<void>("set_rss_poll_enabled", { enabled }),
 };
