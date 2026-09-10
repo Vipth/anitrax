@@ -574,6 +574,15 @@ pub async fn apply_local_patch(
     let repeat = patch.repeat.unwrap_or(base.repeat).max(0);
     let notes = patch.notes.clone().or(base.notes.clone());
 
+    // `None` = leave as-is; `Some("")` = clear; `Some(date)` = set.
+    let resolve_date = |p: &Option<String>, b: &Option<String>| match p {
+        None => b.clone(),
+        Some(s) if s.trim().is_empty() => None,
+        Some(s) => Some(s.trim().to_string()),
+    };
+    let started_at = resolve_date(&patch.started_at, &base.started_at);
+    let completed_at = resolve_date(&patch.completed_at, &base.completed_at);
+
     sqlx::query(
         "INSERT INTO list_entry (
             service, media_id, remote_id, status, progress, score_raw, repeat, notes,
@@ -586,6 +595,8 @@ pub async fn apply_local_patch(
             score_raw = excluded.score_raw,
             repeat = excluded.repeat,
             notes = excluded.notes,
+            started_at = excluded.started_at,
+            completed_at = excluded.completed_at,
             updated_at = excluded.updated_at,
             dirty = 1,
             deleted = 0",
@@ -598,8 +609,8 @@ pub async fn apply_local_patch(
     .bind(score_raw)
     .bind(repeat)
     .bind(&notes)
-    .bind(&base.started_at)
-    .bind(&base.completed_at)
+    .bind(&started_at)
+    .bind(&completed_at)
     .bind(&ts)
     .execute(db)
     .await?;
@@ -663,6 +674,7 @@ pub async fn mark_entry_clean(
         "UPDATE list_entry SET
             remote_id = COALESCE(?3, remote_id),
             status = ?4, progress = ?5, score_raw = ?6, repeat = ?7, notes = ?8,
+            started_at = ?10, completed_at = ?11,
             remote_updated_at = ?9, updated_at = ?9, dirty = 0
          WHERE service = ?1 AND media_id = ?2",
     )
@@ -675,6 +687,8 @@ pub async fn mark_entry_clean(
     .bind(saved.repeat)
     .bind(&saved.notes)
     .bind(saved.updated_at.clone().unwrap_or_else(now))
+    .bind(&saved.started_at)
+    .bind(&saved.completed_at)
     .execute(db)
     .await?;
     Ok(())

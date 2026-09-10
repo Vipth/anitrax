@@ -65,7 +65,6 @@ query ($userId: Int!) {{
 }
 
 pub fn save_media_list_entry() -> String {
-    // Dates are intentionally omitted for the first milestone.
     format!(
         r#"
 mutation (
@@ -75,6 +74,8 @@ mutation (
   $scoreRaw: Int
   $repeat: Int
   $notes: String
+  $startedAt: FuzzyDateInput
+  $completedAt: FuzzyDateInput
 ) {{
   SaveMediaListEntry(
     mediaId: $mediaId
@@ -83,6 +84,8 @@ mutation (
     scoreRaw: $scoreRaw
     repeat: $repeat
     notes: $notes
+    startedAt: $startedAt
+    completedAt: $completedAt
   ) {{
     id
     status
@@ -91,6 +94,8 @@ mutation (
     repeat
     notes
     updatedAt
+    startedAt {{ year month day }}
+    completedAt {{ year month day }}
     media {{ {fields} }}
   }}
 }}

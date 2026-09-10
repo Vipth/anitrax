@@ -10,6 +10,16 @@ use crate::tracker::TrackerService;
 
 pub use gateway::{AniListGateway, BudgetSnapshot};
 
+/// `"YYYY-MM-DD"` -> AniList `FuzzyDateInput`. An empty / unparseable string
+/// becomes an all-null date, which clears the field on AniList.
+fn fuzzy_date_input(s: &str) -> Value {
+    let mut parts = s.split('-').filter_map(|p| p.parse::<i64>().ok());
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some(y), Some(m), Some(d)) => json!({ "year": y, "month": m, "day": d }),
+        _ => json!({ "year": null, "month": null, "day": null }),
+    }
+}
+
 /// AniList implementation of [`TrackerService`]. Every method goes through the
 /// shared [`AniListGateway`]; this type holds no `reqwest::Client` of its own.
 #[derive(Clone)]
@@ -113,6 +123,12 @@ impl TrackerService for AniList {
         }
         if let Some(n) = &patch.notes {
             vars["notes"] = json!(n);
+        }
+        if let Some(d) = &patch.started_at {
+            vars["startedAt"] = fuzzy_date_input(d);
+        }
+        if let Some(d) = &patch.completed_at {
+            vars["completedAt"] = fuzzy_date_input(d);
         }
 
         let data = self.call(queries::save_media_list_entry(), vars, Some(token)).await?;

@@ -236,8 +236,10 @@ pub async fn push_dirty(state: &AppState, svc: ServiceKind) -> AppResult<()> {
             score_raw: Some(entry.score_raw),
             repeat: Some(entry.repeat),
             notes: entry.notes.clone(),
-            started_at: None,
-            completed_at: None,
+            // Push the local dates as authoritative (last-write-wins). `""` sent
+            // for an unset date clears it on the service.
+            started_at: Some(entry.started_at.clone().unwrap_or_default()),
+            completed_at: Some(entry.completed_at.clone().unwrap_or_default()),
         };
         match service_impl.save_entry(&token, &patch).await {
             Ok(saved) => repo::mark_entry_clean(&state.db, svc, &saved).await?,

@@ -77,6 +77,8 @@ export function useEditEntry() {
                   scoreRaw: patch.scoreRaw ?? e.scoreRaw,
                   repeat: patch.repeat ?? e.repeat,
                   notes: patch.notes ?? e.notes,
+                  startedAt: patch.startedAt ?? e.startedAt,
+                  completedAt: patch.completedAt ?? e.completedAt,
                   dirty: true,
                 }
               : e,

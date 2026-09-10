@@ -35,6 +35,12 @@ export function EditEntryDialog({
   );
   const [repeat, setRepeat] = React.useState(String(entry.repeat));
   const [notes, setNotes] = React.useState(entry.notes ?? "");
+  const [startedAt, setStartedAt] = React.useState(
+    entry.startedAt?.slice(0, 10) ?? "",
+  );
+  const [completedAt, setCompletedAt] = React.useState(
+    entry.completedAt?.slice(0, 10) ?? "",
+  );
   const statusGroupRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -44,6 +50,8 @@ export function EditEntryDialog({
       setScoreTen(entry.scoreRaw > 0 ? String(entry.scoreRaw / 10) : "");
       setRepeat(String(entry.repeat));
       setNotes(entry.notes ?? "");
+      setStartedAt(entry.startedAt?.slice(0, 10) ?? "");
+      setCompletedAt(entry.completedAt?.slice(0, 10) ?? "");
     }
   }, [open, entry]);
 
@@ -58,6 +66,8 @@ export function EditEntryDialog({
         : 0,
       repeat: Math.max(0, parseInt(repeat || "0", 10)),
       notes: notes.trim() || null,
+      startedAt,
+      completedAt,
     };
     edit.mutate(patch, { onSuccess: () => onOpenChange(false) });
   };
@@ -148,6 +158,25 @@ export function EditEntryDialog({
                 value={scoreTen}
                 onChange={(e) => setScoreTen(e.target.value)}
                 placeholder="–"
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Started">
+              <Input
+                type="date"
+                value={startedAt}
+                max={completedAt || undefined}
+                onChange={(e) => setStartedAt(e.target.value)}
+              />
+            </Field>
+            <Field label="Finished">
+              <Input
+                type="date"
+                value={completedAt}
+                min={startedAt || undefined}
+                onChange={(e) => setCompletedAt(e.target.value)}
               />
             </Field>
           </div>
