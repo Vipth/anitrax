@@ -175,6 +175,13 @@ app resident). Small, mostly plumbing.
 
 ---
 
+## Backlog / polish
+
+- **Sidebar logo** — current mark (bold serif "A" badge + "niTrax" label,
+  `Sidebar.tsx`) reads as clunky. Revisit with a proper wordmark/icon.
+
+---
+
 ## Verification (per milestone)
 
 - **M1:** connect AniList, list renders with correct per-status counts, +1 shows
