@@ -180,7 +180,7 @@ function MediaDetailPage() {
               {ownedEpisodes.length > 0 && (
                 <FactTile
                   icon={<HardDrive className="size-3.5" />}
-                  value={String(ownedEpisodes.length)}
+                  value={`${ownedEpisodes.length} ep${ownedEpisodes.length === 1 ? "" : "s"}`}
                   label="On disk"
                   hint={`Ep ${episodeRanges(ownedEpisodes)}`}
                 />
