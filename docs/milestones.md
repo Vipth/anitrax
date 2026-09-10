@@ -56,7 +56,7 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M3 — Local library scanner  *(implemented — needs a real-folder acceptance pass)*
+## ✅ M3 — Local library scanner  *(done)*
 
 - ✅ Settings → **Watched folders**: add / remove / enable folders (native
   picker), per-folder file count + last-scan time, "Rescan now"
@@ -90,8 +90,10 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   Progress stays manual (no scrobbling) — bump it with +1 when you're done
 - ✅ 18 scanner/matcher unit tests (folder parsing, season→sequel, synonym
   collision, arc-named seasons) + `episodeRanges` test
-- ⏳ **Acceptance:** scan a real anime folder, confirm ≥90% correct auto-matches
-  against a synced list, and that the manual link picker fills the gaps
+- ✅ **Acceptance passed** (2026-09-09) — scanned a real 305-file library:
+  100 % matched, every distinct auto-match correct on inspection; the
+  "Onigiri"/"Demon Slayer" synonym collision was caught and fixed with the
+  popularity tiebreak; the review queue + remembered links handled the rest
 
 ---
 
