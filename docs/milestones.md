@@ -95,14 +95,21 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M4 — Season browser + statistics
+## ✅ M4 — Season browser + statistics  *(done)*
 
-- `/seasons` — year/season picker, grid of that season's anime, filter by
-  format/genre, one-click add to list (single cached `Page` query per season)
-- `/stats` — episodes & time watched, score distribution, genre breakdown,
-  format split, completion rate, activity over time. Computed in Rust from the
-  cache, rendered with Recharts
-- Verify season grid matches AniList's own season page; stats reconcile with the
+- ✅ `/seasons` — season tabs + year picker + format/genre filters, poster grid,
+  add-to-list per card, defaults to the current season. One paced `Page` query
+  set per (year, season), cached (`season_state` / `season_media`, media reuse
+  `media_cache`); TTL 12h current / 30d past; capped at 3 popularity pages
+- ✅ `/stats` — episodes & hours watched, mean score + 1–10 distribution,
+  status + format breakdown, top genres, completion rate, completions per month
+  for the last 12 months. Computed in Rust (`stats.rs`, 5 unit tests) from the
+  cache; charts are hand-rolled SVG/flex (dropped Recharts — its v3 `<Bar>` was
+  broken under React 19, and the app already had themed bar primitives)
+- ✅ sidebar: Seasons + Stats (nav is now Library / Discover / Seasons / Local
+  files / Stats / Settings, hotkeys 1–6)
+- ⏳ **Acceptance:** open `/seasons` on a residential connection, confirm the
+  grid matches AniList's own season page; confirm stat totals line up with the
   AniList profile
 
 ---
@@ -153,7 +160,8 @@ interface — exact position/duration/path instead of guessing from a title.
   on anilist.co within seconds, offline relaunch still renders, 10-min hammer
   test stays under 45 req/min with zero 429s
 - **M3:** scan a real folder → ≥90% correct auto-matches, manual link works
-- **M4:** season grid and stats numbers reconcile with AniList
+- **M4:** season grid matches AniList's own season page; stat totals reconcile
+  with the AniList profile
 - **M5:** an RSS rule adds the right torrent to qBittorrent exactly once, with the
   configured category and save path
 - **M6:** play an episode → progress offer fires at the right point; a title from

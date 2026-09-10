@@ -45,4 +45,5 @@ export const qk = {
   libraryOwned: ["libraryOwned"] as const,
   currentSeason: ["currentSeason"] as const,
   season: (year: number, season: string) => ["season", year, season] as const,
+  stats: ["stats"] as const,
 };

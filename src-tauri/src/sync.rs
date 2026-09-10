@@ -118,6 +118,12 @@ pub async fn library(state: &AppState, service: Option<&str>) -> AppResult<Vec<M
     repo::all_entries(&state.db, parse_service(service)).await
 }
 
+/// Watch statistics, computed from the local cache.
+pub async fn stats(state: &AppState, service: Option<&str>) -> AppResult<crate::stats::StatsData> {
+    let entries = repo::all_entries(&state.db, parse_service(service)).await?;
+    Ok(crate::stats::compute(&entries, chrono::Utc::now()))
+}
+
 /// Ensure we have a media row. Serves it from the cache when the cached copy is
 /// still within [`META_TTL`]; refetches (and re-caches) when it's stale or
 /// missing, falling back to the stale copy if the network is unavailable.

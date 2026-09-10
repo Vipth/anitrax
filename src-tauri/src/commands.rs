@@ -110,6 +110,14 @@ pub async fn get_library(
 }
 
 #[tauri::command]
+pub async fn get_stats(
+    state: State<'_, AppState>,
+    service: Option<String>,
+) -> AppResult<crate::stats::StatsData> {
+    sync::stats(&state, service.as_deref()).await
+}
+
+#[tauri::command]
 pub async fn sync_now(
     state: State<'_, AppState>,
     service: Option<String>,

@@ -35,7 +35,14 @@ function RootLayout() {
   const router = useRouter();
   const isNavigating = useRouterState({ select: (s) => s.status === "pending" });
 
-  const SECTIONS = ["/", "/discover", "/seasons", "/library-local", "/settings"];
+  const SECTIONS = [
+    "/",
+    "/discover",
+    "/seasons",
+    "/library-local",
+    "/stats",
+    "/settings",
+  ];
   const goSection = (dir: -1 | 1) => {
     // A menu, listbox, or dialog owns the arrow keys while it's open.
     if (document.querySelector('[role="listbox"],[role="menu"],[role="dialog"]'))
@@ -79,6 +86,11 @@ function RootLayout() {
         navigate({ to: "/library-local" });
       },
       "5": (e) => {
+        if (helpOpen) return;
+        e.preventDefault();
+        navigate({ to: "/stats" });
+      },
+      "6": (e) => {
         if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/settings" });

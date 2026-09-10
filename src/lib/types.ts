@@ -122,6 +122,25 @@ export interface CurrentSeason {
   season: MediaSeasonName;
 }
 
+export interface StatBucket {
+  key: string;
+  count: number;
+}
+
+export interface StatsData {
+  total: number;
+  byStatus: StatBucket[];
+  episodesWatched: number;
+  minutesWatched: number;
+  meanScore: number;
+  scoredCount: number;
+  scoreBuckets: StatBucket[];
+  topGenres: StatBucket[];
+  byFormat: StatBucket[];
+  completionRate: number;
+  activity: StatBucket[];
+}
+
 export interface LibraryFolder {
   id: number;
   path: string;

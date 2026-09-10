@@ -13,6 +13,7 @@ import type {
   OwnedMedia,
   ScanReport,
   ServiceKind,
+  StatsData,
   SyncReport,
 } from "./types";
 
@@ -41,6 +42,8 @@ export const api = {
 
   getLibrary: (service?: ServiceKind) =>
     invoke<MediaListEntry[]>("get_library", { service }),
+
+  getStats: (service?: ServiceKind) => invoke<StatsData>("get_stats", { service }),
 
   syncNow: (service?: ServiceKind) =>
     invoke<SyncReport>("sync_now", { service }),

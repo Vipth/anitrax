@@ -21,6 +21,14 @@ export function useSettings() {
   return useQuery({ queryKey: qk.settings, queryFn: api.getSettings });
 }
 
+export function useStats() {
+  return useQuery({
+    queryKey: qk.stats,
+    queryFn: () => api.getStats(),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useLastSync() {
   return useQuery({
     queryKey: qk.lastSync(),
@@ -45,6 +53,7 @@ export function useSyncNow() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.library() });
       qc.invalidateQueries({ queryKey: qk.lastSync() });
+      qc.invalidateQueries({ queryKey: qk.stats });
     },
   });
 }
@@ -175,9 +184,10 @@ export function useBackendEvents() {
   const qc = useQueryClient();
   useEffect(() => {
     const uns = [
-      listen("entries-updated", () =>
-        qc.invalidateQueries({ queryKey: qk.library() }),
-      ),
+      listen("entries-updated", () => {
+        qc.invalidateQueries({ queryKey: qk.library() });
+        qc.invalidateQueries({ queryKey: qk.stats });
+      }),
       listen("auth-changed", () => {
         qc.invalidateQueries({ queryKey: qk.settings });
         qc.invalidateQueries({ queryKey: qk.accounts });

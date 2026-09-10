@@ -4,6 +4,7 @@ mod db;
 mod error;
 mod library;
 mod state;
+mod stats;
 mod sync;
 mod tracker;
 
@@ -41,6 +42,7 @@ pub fn run() {
             commands::list_accounts,
             commands::disconnect_account,
             commands::get_library,
+            commands::get_stats,
             commands::sync_now,
             commands::get_media,
             commands::edit_entry,
