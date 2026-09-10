@@ -75,6 +75,7 @@ pub fn run() {
             commands::delete_rss_rule,
             commands::set_rss_rule_enabled,
             commands::rss_history,
+            commands::clear_rss_history,
             commands::check_feeds_now,
             commands::get_qb_config,
             commands::set_qb_config,

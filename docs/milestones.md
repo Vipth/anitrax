@@ -120,7 +120,8 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 - ✅ `/rss` — feed manager (add / enable / remove, last-check time + last error)
   and rule builder: bind a rule to a tracked show, set title-contains, release
   group, min resolution, episode range, save path, qBittorrent category, "add
-  paused". Recent-downloads list. Auto-check toggle (default on).
+  paused". Recent-downloads list with a "Clear" button (also clears the dedupe
+  guard). Auto-check toggle (default on).
 - ✅ **`DownloadClient` trait** (`src-tauri/src/download/`) — `add(AddTorrent)` +
   `test_connection()`. `qbittorrent.rs` is the only impl; the scheduler only
   sees the trait, so Transmission / Deluge is a new file, not a refactor.

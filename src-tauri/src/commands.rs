@@ -372,6 +372,13 @@ pub async fn rss_history(
     repo::list_history(&state.db, limit.unwrap_or(100).clamp(1, 500)).await
 }
 
+/// Wipe the download history. The next check will re-evaluate current feed
+/// items, so a still-matching release can be grabbed again.
+#[tauri::command]
+pub async fn clear_rss_history(state: State<'_, AppState>) -> AppResult<u64> {
+    repo::clear_history(&state.db).await
+}
+
 #[tauri::command]
 pub async fn check_feeds_now(
     app: tauri::AppHandle,

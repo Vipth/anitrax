@@ -136,6 +136,8 @@ export const api = {
   rssHistory: (limit?: number) =>
     invoke<RssHistoryEntry[]>("rss_history", { limit: limit ?? null }),
 
+  clearRssHistory: () => invoke<number>("clear_rss_history"),
+
   checkFeedsNow: () => invoke<RssCheckReport>("check_feeds_now"),
 
   getQbConfig: () => invoke<QbConfig>("get_qb_config"),

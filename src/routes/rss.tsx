@@ -147,7 +147,12 @@ function RssPage() {
         )}
       </Section>
 
-      <Section title="Recent downloads">
+      <Section
+        title="Recent downloads"
+        action={
+          (history.data?.length ?? 0) > 0 ? <ClearHistoryButton /> : undefined
+        }
+      >
         {history.isLoading ? (
           <p className="text-xs text-muted-foreground">Loading…</p>
         ) : (history.data?.length ?? 0) === 0 ? (
@@ -665,6 +670,43 @@ function RuleDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ClearHistoryButton() {
+  const qc = useQueryClient();
+  const [armed, setArmed] = React.useState(false);
+
+  const clear = useMutation({
+    mutationFn: () => api.clearRssHistory(),
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: qk.rssHistory });
+      toast.success("History cleared", `${n} entr${n === 1 ? "y" : "ies"} removed`);
+      setArmed(false);
+    },
+    onError: (e) => toast.error("Couldn't clear", errorMessage(e)),
+  });
+
+  React.useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(id);
+  }, [armed]);
+
+  return (
+    <button
+      onClick={() => (armed ? clear.mutate() : setArmed(true))}
+      disabled={clear.isPending}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+        armed
+          ? "bg-danger/15 text-danger hover:bg-danger/25"
+          : "text-muted-foreground hover:bg-border/40 hover:text-foreground",
+      )}
+    >
+      <Trash2 className="size-3.5" />
+      {armed ? "Clear all history?" : "Clear"}
+    </button>
   );
 }
 

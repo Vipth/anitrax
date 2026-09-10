@@ -1581,6 +1581,13 @@ pub async fn list_history(db: &Db, limit: i64) -> AppResult<Vec<HistoryEntry>> {
         .collect())
 }
 
+/// Wipe the download history. Also clears the dedupe guard, so the next feed
+/// check re-considers every current item.
+pub async fn clear_history(db: &Db) -> AppResult<u64> {
+    let r = sqlx::query("DELETE FROM rss_history").execute(db).await?;
+    Ok(r.rows_affected())
+}
+
 // --------------------------------------------------------------------------- //
 // RSS auto-download — download client config
 // --------------------------------------------------------------------------- //
