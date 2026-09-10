@@ -80,7 +80,7 @@ function ProgressBar({
     >
       {downloadedPct > watchedPct && (
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-success/70"
+          className="absolute inset-y-0 left-0 rounded-full bg-downloaded/80"
           style={{ width: `${downloadedPct}%` }}
         />
       )}

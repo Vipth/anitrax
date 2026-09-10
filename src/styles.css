@@ -23,6 +23,7 @@
   --success: 152 62% 42%;
   --warning: 38 92% 50%;
   --danger: 356 72% 56%;
+  --downloaded: 184 66% 38%; /* teal — "on disk, not watched" on the progress bar */
 
   --ring: 255 82% 62%;
   --radius: 0.75rem;
@@ -46,6 +47,7 @@
   --success: 152 55% 52%;
   --warning: 38 92% 58%;
   --danger: 356 78% 66%;
+  --downloaded: 185 60% 55%; /* teal */
 
   --ring: 255 90% 72%;
 }
@@ -75,6 +77,7 @@
   --success: 109 58% 40%; /* Green */
   --warning: 22 99% 52%; /* Peach */
   --danger: 355 68% 50%; /* Maroon (darkened for the light ground) */
+  --downloaded: 197 90% 40%; /* Sky */
 
   --ring: 347 87% 44%;
 }
@@ -98,6 +101,7 @@
   --success: 96 44% 68%; /* Green */
   --warning: 20 79% 70%; /* Peach */
   --danger: 358 66% 76%; /* Maroon */
+  --downloaded: 189 48% 73%; /* Sky */
 
   --ring: 359 68% 71%;
 }
@@ -121,6 +125,7 @@
   --success: 105 48% 72%; /* Green */
   --warning: 21 86% 73%; /* Peach */
   --danger: 355 71% 77%; /* Maroon */
+  --downloaded: 189 59% 73%; /* Sky */
 
   --ring: 351 74% 73%;
 }
@@ -144,6 +149,7 @@
   --success: 115 54% 76%; /* Green */
   --warning: 23 92% 76%; /* Peach */
   --danger: 350 65% 77%; /* Maroon */
+  --downloaded: 189 71% 73%; /* Sky */
 
   --ring: 343 81% 75%;
 }
@@ -169,6 +175,7 @@
   --success: 87 37% 58%; /* springGreen */
   --warning: 39 66% 71%; /* carpYellow */
   --danger: 353 70% 65%; /* waveRed */
+  --downloaded: 265 26% 61%; /* oniViolet */
 
   --ring: 220 54% 67%;
 }
@@ -194,6 +201,7 @@
   --success: 128 46% 55%;
   --warning: 40 88% 62%;
   --danger: 356 68% 64%;
+  --downloaded: 250 52% 71%; /* periwinkle — a cool contrast to the jade primary */
 
   --ring: 154 56% 51%;
 }
@@ -219,6 +227,7 @@
   --success: 92 28% 65%;
   --warning: 40 71% 73%;
   --danger: 354 42% 56%;
+  --downloaded: 311 20% 63%; /* Aurora purple */
 
   --ring: 193 43% 67%;
 }
@@ -239,6 +248,7 @@
   --color-success: hsl(var(--success));
   --color-warning: hsl(var(--warning));
   --color-danger: hsl(var(--danger));
+  --color-downloaded: hsl(var(--downloaded));
   --color-ring: hsl(var(--ring));
 
   --radius-lg: var(--radius);
