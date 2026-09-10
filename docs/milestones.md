@@ -132,8 +132,10 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   `<enclosure>` then `<link>`, guid from `<guid>` then `<link>`. 4 MB cap.
   Atom not supported.
 - ✅ `rss/rules.rs` — **pure** `evaluate(rule, parsed) -> Decision`; the release
-  title is run through the M3 anitomy parser for episode / resolution / group.
-  8 unit tests.
+  title is run through the M3 anitomy parser for episode / resolution / season /
+  group. Filters: title-contains (all words), **title-excludes (any word — kills
+  Batch / V2)**, **season (untagged = S1)**, release group, min resolution,
+  episode range. 10 unit tests.
 - ✅ `rss/scheduler.rs` — `check_all_feeds`: poll enabled feeds, evaluate the
   rules bound to each (feed-specific + all-feed), dedupe via `rss_history`
   (guid spent regardless of rule), hand matches to the client, desktop

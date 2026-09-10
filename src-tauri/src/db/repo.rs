@@ -1360,8 +1360,8 @@ pub async fn mark_feed_fetched(db: &Db, id: i64, error: Option<&str>) -> AppResu
 // --------------------------------------------------------------------------- //
 
 const RULE_SELECT: &str = "SELECT r.id, r.name, r.enabled, r.feed_id, r.service, r.media_id,
-    r.title_contains, r.release_group, r.min_resolution, r.episode_from, r.episode_to,
-    r.dest_path, r.category, r.paused, r.created_at,
+    r.title_contains, r.exclude_contains, r.release_group, r.min_resolution, r.season,
+    r.episode_from, r.episode_to, r.dest_path, r.category, r.paused, r.created_at,
     m.title_romaji, m.title_english, m.title_native
  FROM rss_rule r
  LEFT JOIN media_cache m ON m.service = r.service AND m.id = r.media_id";
@@ -1387,8 +1387,10 @@ fn rule_from_row(r: &sqlx::sqlite::SqliteRow) -> Rule {
         service: r.get("service"),
         media_id: r.get("media_id"),
         title_contains: r.get("title_contains"),
+        exclude_contains: r.get("exclude_contains"),
         release_group: r.get("release_group"),
         min_resolution: r.get("min_resolution"),
+        season: r.get("season"),
         episode_from: r.get("episode_from"),
         episode_to: r.get("episode_to"),
         dest_path: r.get("dest_path"),
@@ -1434,9 +1436,10 @@ pub async fn rules_for_feed(db: &Db, feed_id: i64) -> AppResult<Vec<Rule>> {
 pub async fn insert_rule(db: &Db, input: &RuleInput) -> AppResult<Rule> {
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO rss_rule
-         (name, enabled, feed_id, service, media_id, title_contains, release_group,
-          min_resolution, episode_from, episode_to, dest_path, category, paused, created_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)
+         (name, enabled, feed_id, service, media_id, title_contains, exclude_contains,
+          release_group, min_resolution, season, episode_from, episode_to, dest_path,
+          category, paused, created_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)
          RETURNING id",
     )
     .bind(input.name.trim())
@@ -1445,8 +1448,10 @@ pub async fn insert_rule(db: &Db, input: &RuleInput) -> AppResult<Rule> {
     .bind(clean_opt(&input.service))
     .bind(input.media_id)
     .bind(clean_opt(&input.title_contains))
+    .bind(clean_opt(&input.exclude_contains))
     .bind(clean_opt(&input.release_group))
     .bind(input.min_resolution)
+    .bind(input.season)
     .bind(input.episode_from)
     .bind(input.episode_to)
     .bind(clean_opt(&input.dest_path))
@@ -1464,8 +1469,9 @@ pub async fn update_rule(db: &Db, id: i64, input: &RuleInput) -> AppResult<Rule>
     sqlx::query(
         "UPDATE rss_rule SET
            name = ?2, enabled = ?3, feed_id = ?4, service = ?5, media_id = ?6,
-           title_contains = ?7, release_group = ?8, min_resolution = ?9,
-           episode_from = ?10, episode_to = ?11, dest_path = ?12, category = ?13, paused = ?14
+           title_contains = ?7, exclude_contains = ?8, release_group = ?9,
+           min_resolution = ?10, season = ?11, episode_from = ?12, episode_to = ?13,
+           dest_path = ?14, category = ?15, paused = ?16
          WHERE id = ?1",
     )
     .bind(id)
@@ -1475,8 +1481,10 @@ pub async fn update_rule(db: &Db, id: i64, input: &RuleInput) -> AppResult<Rule>
     .bind(clean_opt(&input.service))
     .bind(input.media_id)
     .bind(clean_opt(&input.title_contains))
+    .bind(clean_opt(&input.exclude_contains))
     .bind(clean_opt(&input.release_group))
     .bind(input.min_resolution)
+    .bind(input.season)
     .bind(input.episode_from)
     .bind(input.episode_to)
     .bind(clean_opt(&input.dest_path))

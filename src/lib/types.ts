@@ -215,8 +215,10 @@ export interface RssRule {
   service: string | null;
   mediaId: number | null;
   titleContains: string | null;
+  excludeContains: string | null;
   releaseGroup: string | null;
   minResolution: number | null;
+  season: number | null;
   episodeFrom: number | null;
   episodeTo: number | null;
   destPath: string | null;
@@ -233,8 +235,10 @@ export interface RssRuleInput {
   service: string | null;
   mediaId: number | null;
   titleContains: string | null;
+  excludeContains: string | null;
   releaseGroup: string | null;
   minResolution: number | null;
+  season: number | null;
   episodeFrom: number | null;
   episodeTo: number | null;
   destPath: string | null;

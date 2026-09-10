@@ -297,6 +297,8 @@ function Feeds() {
 function ruleSummary(r: RssRule): string {
   const bits: string[] = [];
   if (r.titleContains) bits.push(`"${r.titleContains}"`);
+  if (r.excludeContains) bits.push(`not "${r.excludeContains}"`);
+  if (r.season != null) bits.push(`S${r.season}`);
   if (r.releaseGroup) bits.push(r.releaseGroup);
   if (r.minResolution) bits.push(`${r.minResolution}p+`);
   if (r.episodeFrom != null || r.episodeTo != null)
@@ -366,8 +368,10 @@ function emptyInput(): RssRuleInput {
     service: null,
     mediaId: null,
     titleContains: null,
+    excludeContains: null,
     releaseGroup: null,
     minResolution: null,
+    season: null,
     episodeFrom: null,
     episodeTo: null,
     destPath: null,
@@ -395,8 +399,10 @@ function RuleDialog({
           service: rule.service,
           mediaId: rule.mediaId,
           titleContains: rule.titleContains,
+          excludeContains: rule.excludeContains,
           releaseGroup: rule.releaseGroup,
           minResolution: rule.minResolution,
+          season: rule.season,
           episodeFrom: rule.episodeFrom,
           episodeTo: rule.episodeTo,
           destPath: rule.destPath,
@@ -511,7 +517,7 @@ function RuleDialog({
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Feed">
               <select
                 value={form.feedId ?? ""}
@@ -524,6 +530,22 @@ function RuleDialog({
                 {(feeds.data ?? []).map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Season" hint="S1 = untagged releases.">
+              <select
+                value={form.season ?? ""}
+                onChange={(e) =>
+                  set("season", e.target.value ? Number(e.target.value) : null)
+                }
+                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="">Any</option>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    S{n}
                   </option>
                 ))}
               </select>
@@ -553,6 +575,17 @@ function RuleDialog({
               value={form.titleContains ?? ""}
               onChange={(e) => set("titleContains", e.target.value || null)}
               placeholder="Frieren"
+            />
+          </Field>
+
+          <Field
+            label="Title must not contain"
+            hint="Space-separated; any match skips the release (e.g. Batch V2 S2)."
+          >
+            <Input
+              value={form.excludeContains ?? ""}
+              onChange={(e) => set("excludeContains", e.target.value || null)}
+              placeholder="Batch"
             />
           </Field>
 

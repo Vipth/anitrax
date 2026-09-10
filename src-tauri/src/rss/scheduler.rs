@@ -29,6 +29,7 @@ fn parse_item(raw_title: &str) -> ParsedItem {
     ParsedItem {
         title: raw_title.to_string(),
         episode: p.episode,
+        season: p.season,
         resolution_height: p.resolution.as_deref().and_then(rules::resolution_height),
         release_group: p.release_group,
     }

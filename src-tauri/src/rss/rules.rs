@@ -10,6 +10,9 @@ use super::Rule;
 pub struct ParsedItem {
     pub title: String,
     pub episode: Option<i64>,
+    /// anitomy-parsed season number, or `None` when the title carries no season
+    /// marker (which we treat as season 1).
+    pub season: Option<i64>,
     /// Vertical resolution in pixels (`1080` for "1080p"), when the title says.
     pub resolution_height: Option<i64>,
     pub release_group: Option<String>,
@@ -49,6 +52,15 @@ fn contains_all_words(haystack: &str, needle: &str) -> bool {
         .all(|w| hay.contains(&w.to_lowercase()))
 }
 
+/// Does *any* whitespace-separated word of `needle` appear in `haystack`
+/// (case-insensitive)? Empty `needle` matches nothing.
+fn contains_any_word(haystack: &str, needle: &str) -> bool {
+    let hay = haystack.to_lowercase();
+    needle
+        .split_whitespace()
+        .any(|w| hay.contains(&w.to_lowercase()))
+}
+
 /// Evaluate one rule against one parsed item. Dedupe (`rss_history`) and the
 /// feed/enabled checks on the *feed* are the scheduler's job; this covers the
 /// rule's own constraints.
@@ -60,6 +72,20 @@ pub fn evaluate(rule: &Rule, item: &ParsedItem) -> Decision {
     if let Some(needle) = rule.title_contains.as_deref() {
         if !needle.trim().is_empty() && !contains_all_words(&item.title, needle) {
             return Decision::Skip("title doesn't contain the required words");
+        }
+    }
+
+    if let Some(needle) = rule.exclude_contains.as_deref() {
+        if !needle.trim().is_empty() && contains_any_word(&item.title, needle) {
+            return Decision::Skip("title contains an excluded word");
+        }
+    }
+
+    if let Some(want) = rule.season {
+        // An untagged release is season 1 by convention.
+        let got = item.season.unwrap_or(1);
+        if got != want {
+            return Decision::Skip("wrong season");
         }
     }
 
@@ -113,8 +139,10 @@ mod tests {
             service: Some("anilist".into()),
             media_id: Some(123),
             title_contains: None,
+            exclude_contains: None,
             release_group: None,
             min_resolution: None,
+            season: None,
             episode_from: None,
             episode_to: None,
             dest_path: None,
@@ -193,6 +221,45 @@ mod tests {
         assert!(!evaluate(&r, &item("Show - 04", Some(4))).is_download());
         assert!(!evaluate(&r, &item("Show - 13", Some(13))).is_download());
         assert!(!evaluate(&r, &item("Show Batch 01-24", None)).is_download());
+    }
+
+    #[test]
+    fn exclude_contains_rejects_on_any_word() {
+        let mut r = rule();
+        r.exclude_contains = Some("Batch V2".into());
+        assert!(evaluate(&r, &item("[Grp] Frieren - 10 (1080p)", Some(10))).is_download());
+        assert!(!evaluate(&r, &item("[Grp] Frieren (01-28) [Batch]", None)).is_download());
+        assert!(!evaluate(&r, &item("[Grp] Frieren - 10 (1080p) [V2]", Some(10))).is_download());
+    }
+
+    #[test]
+    fn season_filter_treats_untagged_as_season_one() {
+        let mut r = rule();
+        r.season = Some(1);
+        // Untagged S1 release — no season token.
+        assert!(evaluate(
+            &r,
+            &ParsedItem {
+                title: "[SubsPlease] Sousou no Frieren - 05 (1080p)".into(),
+                episode: Some(5),
+                season: None,
+                ..Default::default()
+            }
+        )
+        .is_download());
+        // S2 release is rejected by a season-1 rule.
+        assert_eq!(
+            evaluate(
+                &r,
+                &ParsedItem {
+                    title: "[SubsPlease] Sousou no Frieren S2 - 10 (1080p)".into(),
+                    episode: Some(10),
+                    season: Some(2),
+                    ..Default::default()
+                }
+            ),
+            Decision::Skip("wrong season")
+        );
     }
 
     #[test]
