@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import { ThemeSelect } from "./ThemeSelect";
+import { Wordmark } from "./Wordmark";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 import { Kbd } from "@/components/ui/kbd";
 import { useUi } from "@/stores/ui";
@@ -28,11 +29,8 @@ export function Sidebar() {
   const setThemeMenuOpen = useUi((s) => s.setThemeMenuOpen);
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-surface">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <div className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
-          <span className="font-serif text-lg font-bold leading-none">A</span>
-        </div>
-        <span className="text-sm font-semibold">niTrax</span>
+      <div className="px-4 py-4">
+        <Wordmark />
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-2">

@@ -175,10 +175,35 @@ app resident). Small, mostly plumbing.
 
 ---
 
+## M8 — Auto-update
+
+So a build ships itself instead of the user re-downloading an installer. Also
+forces the cross-platform build story to exist.
+
+- **`tauri-plugin-updater` + `tauri-plugin-process`** — checks a `latest.json`
+  manifest on GitHub Releases once at launch, plus a manual "Check for updates"
+  in Settings. One check, not a background poller — same restraint as the AniList
+  gateway.
+- **Signed updates** — Ed25519 keypair via `tauri signer generate`; public key in
+  `tauri.conf.json`, private key + password as CI secrets. An unsigned or
+  tampered bundle is refused.
+- **GitHub Actions release workflow** — `tauri-apps/tauri-action` on a version
+  tag builds Windows / macOS / Linux bundles and uploads them plus the generated
+  `latest.json` to the release. This is the cross-platform build pipeline we've
+  been deferring.
+- **Frontend** — unobtrusive "v0.2.0 is ready" prompt with release notes,
+  download with a progress bar, install + relaunch on confirm. Never forced,
+  dismissible, "skip this version".
+- **Settings** — current version, last-checked time, "check automatically on
+  launch" toggle (default on), stable channel only for now.
+
+---
+
 ## Backlog / polish
 
-- **Sidebar logo** — current mark (bold serif "A" badge + "niTrax" label,
-  `Sidebar.tsx`) reads as clunky. Revisit with a proper wordmark/icon.
+- ~~**Sidebar logo**~~ — done (2026-09-10). `Wordmark.tsx`: `[AniTrax]` —
+  two-tone extrabold name in primary brackets, no icon glyph so it doesn't
+  clash with the nav lucide icons.
 
 ---
 
@@ -198,6 +223,9 @@ app resident). Small, mostly plumbing.
 - **M7:** X hides to tray and the app keeps running; tray menu opens / syncs /
   quits; with autostart on, a login launch comes up minimised; a second launch
   focuses the running window
+- **M8:** publish a dummy higher-versioned release → the app detects it at
+  launch, shows the prompt with notes, downloads, installs, and relaunches on the
+  new version; an unsigned or tampered bundle is rejected
 
 ---
 
