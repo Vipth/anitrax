@@ -146,9 +146,10 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   column beyond that.
 - ✅ 12 RSS unit tests (feeds parse + rule decisions); `cargo test` + `vitest`
   green.
-- ⏳ **Acceptance owed** — needs a live qBittorrent + a real feed: confirm a rule
-  adds exactly one torrent with the right category / save path, and a second
-  poll doesn't re-add it.
+- ⏳ **Acceptance mostly done** (2026-09-10, live qBittorrent + Nyaa feed):
+  rules add torrents, and the **category + save path land on the torrent** ✅.
+  Still to eyeball: "add paused" state, and that a second poll doesn't re-add an
+  item already in `rss_history`.
 
 ---
 
@@ -228,6 +229,18 @@ forces the cross-platform build story to exist.
 - ~~**Sidebar logo**~~ — done (2026-09-10). `Wordmark.tsx`: `[AniTrax]` —
   two-tone extrabold name in primary brackets, no icon glyph so it doesn't
   clash with the nav lucide icons.
+
+---
+
+## Known bugs
+
+- **Season viewer loses its place on back-nav** — browse to an older
+  year/season in `/seasons`, open an anime, hit Back → you land on the current
+  season, not the one you were viewing. `seasons.tsx` keeps the selected
+  year / season / format / genre in `React.useState`, so the route remounts at
+  its default (current season) when you navigate back to it. Fix: move that
+  state into URL search params (`validateSearch` + `Route.useSearch()` /
+  `navigate({ search })`), same pattern as the discover-search back-nav.
 
 ---
 
