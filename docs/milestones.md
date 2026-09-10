@@ -155,6 +155,26 @@ interface — exact position/duration/path instead of guessing from a title.
 
 ---
 
+## M7 — Tray + background running
+
+Quality-of-life, and a prerequisite for M6 being useful (a detector wants the
+app resident). Small, mostly plumbing.
+
+- **System tray icon** — `TrayIconBuilder`: menu (Open / Sync now / Quit),
+  left-click toggles the window. Closing the window hides to tray instead of
+  quitting; Quit from the menu actually exits.
+- **Close-to-tray toggle** in Settings (default on) — off = the X quits like a
+  normal window.
+- **Start on login** — `tauri-plugin-autostart`; Settings toggle, off by
+  default. Pair with a "start minimised to tray" sub-option so a login-launch
+  doesn't pop a window.
+- Single-instance already wired (`tauri-plugin-single-instance`) — make the
+  second launch focus/restore the existing window.
+- Verify on Windows first (macOS/Linux tray behaviour differs — menubar item,
+  AppIndicator).
+
+---
+
 ## Verification (per milestone)
 
 - **M1:** connect AniList, list renders with correct per-status counts, +1 shows
@@ -168,6 +188,9 @@ interface — exact position/duration/path instead of guessing from a title.
 - **M6:** play an episode → progress offer fires at the right point; a title from
   an external player resolves to the correct show + episode; no false positives
   on non-anime windows
+- **M7:** X hides to tray and the app keeps running; tray menu opens / syncs /
+  quits; with autostart on, a login launch comes up minimised; a second launch
+  focuses the running window
 
 ---
 
