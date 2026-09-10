@@ -6,7 +6,16 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, HardDrive, Plus, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarRange,
+  ExternalLink,
+  Film,
+  HardDrive,
+  Plus,
+  Star,
+  Tv,
+} from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
@@ -129,33 +138,42 @@ function MediaDetailPage() {
               </p>
             )}
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <div className="mt-2.5">
               <AiringBadge status={media.airingStatus} variant="plain" />
-              <span>{FORMAT_LABEL[media.format]}</span>
-              {media.episodes && <span>· {media.episodes} episodes</span>}
-              {media.seasonYear && (
-                <span>
-                  · {media.season ? media.season[0] + media.season.slice(1).toLowerCase() + " " : ""}
-                  {media.seasonYear}
-                </span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <FactTile
+                icon={<Tv className="size-3.5" />}
+                value={FORMAT_LABEL[media.format]}
+                label="Format"
+              />
+              {media.episodes != null && (
+                <FactTile
+                  icon={<Film className="size-3.5" />}
+                  value={String(media.episodes)}
+                  label={media.episodes === 1 ? "Episode" : "Episodes"}
+                />
+              )}
+              {airedLabel(media) && (
+                <FactTile
+                  icon={<CalendarRange className="size-3.5" />}
+                  value={airedLabel(media)!}
+                  label="Aired"
+                />
               )}
               {media.averageScore != null && (
-                <span className="inline-flex items-center gap-0.5">
-                  · <Star className="size-3 fill-warning text-warning" />
-                  {media.averageScore}%
-                </span>
-              )}
-              {media.siteUrl && (
-                <button
-                  onClick={() => openUrl(media.siteUrl!)}
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                >
-                  · AniList <ExternalLink className="size-3" />
-                </button>
+                <FactTile
+                  icon={
+                    <Star className="size-3.5 fill-warning text-warning" />
+                  }
+                  value={`${media.averageScore}%`}
+                  label="Rating"
+                />
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {media.genres.map((g) => (
                 <span
                   key={g}
@@ -164,6 +182,14 @@ function MediaDetailPage() {
                   {g}
                 </span>
               ))}
+              {media.siteUrl && (
+                <button
+                  onClick={() => openUrl(media.siteUrl!)}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
+                >
+                  AniList <ExternalLink className="size-3" />
+                </button>
+              )}
             </div>
 
             <div className="mt-5">
@@ -230,4 +256,44 @@ function MediaDetailPage() {
       )}
     </div>
   );
+}
+
+function FactTile({
+  icon,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-raised px-3 py-2">
+      <span className="grid size-7 shrink-0 place-items-center rounded-md bg-border/50 text-muted-foreground">
+        {icon}
+      </span>
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-sm font-semibold">{value}</p>
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** "Summer 2026", or "2026" when the season is unknown. */
+function airedLabel(media: {
+  season: string | null;
+  seasonYear: number | null;
+  startDate: string | null;
+}): string | null {
+  const year =
+    media.seasonYear ?? (Number(media.startDate?.slice(0, 4)) || null);
+  if (!year) return null;
+  if (media.season) {
+    const s = media.season[0] + media.season.slice(1).toLowerCase();
+    return `${s} ${year}`;
+  }
+  return String(year);
 }
