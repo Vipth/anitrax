@@ -110,9 +110,8 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   broken under React 19, and the app already had themed bar primitives)
 - ✅ sidebar: Seasons + Stats (nav is now Library / Discover / Seasons / Local
   files / Stats / Settings, hotkeys 1–6)
-- ⏳ **Acceptance:** open `/seasons` on a residential connection, confirm the
-  grid matches AniList's own season page; confirm stat totals line up with the
-  AniList profile
+- ✅ **Acceptance passed** (2026-09-10) — season grid and stat totals eyeballed
+  against AniList and line up
 
 ---
 
