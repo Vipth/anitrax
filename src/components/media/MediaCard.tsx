@@ -3,7 +3,6 @@ import { HardDrive, Pencil, Star, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaListEntry } from "@/lib/types";
 import { FORMAT_LABEL, countdown, mediaTitle, scoreToTen } from "@/lib/format";
-import { nextEpisodeOnDisk } from "@/lib/library";
 import { AiringBadge } from "./AiringBadge";
 import { PlayButton } from "./PlayButton";
 import { ProgressControl } from "./ProgressControl";
@@ -16,35 +15,27 @@ interface CardProps {
   onEdit: (entry: MediaListEntry) => void;
 }
 
-/** Small "N episodes on disk" pill; tinted when the next unwatched one is ready. */
+/** Neutral "N episodes on disk" pill — how many local files are matched to this
+ * show. Whether the *next* one is ready is signalled by the Play button. */
 export function OwnedBadge({
-  entry,
   owned,
   className,
 }: {
-  entry: MediaListEntry;
   owned?: number[];
   className?: string;
 }) {
-  if (!owned || owned.length === 0) return null;
-  const nextReady = nextEpisodeOnDisk(entry, owned) != null;
+  const n = owned?.length ?? 0;
+  if (n === 0) return null;
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-        nextReady
-          ? "bg-primary/15 text-primary"
-          : "bg-border/50 text-muted-foreground",
+        "inline-flex items-center gap-1 rounded-md bg-border/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground",
         className,
       )}
-      title={
-        nextReady
-          ? `Episode ${entry.progress + 1} is on disk`
-          : `${owned.length} episode${owned.length === 1 ? "" : "s"} on disk`
-      }
+      title={`${n} episode${n === 1 ? "" : "s"} on disk`}
     >
       <HardDrive className="size-3" />
-      {owned.length}
+      {n} on disk
     </span>
   );
 }
@@ -157,10 +148,7 @@ export function MediaCard({ entry, selected, owned, onEdit }: CardProps) {
               {entry.media.seasonYear ? ` · ${entry.media.seasonYear}` : ""}
             </span>
           </span>
-          <div className="flex shrink-0 items-center gap-1">
-            <OwnedBadge entry={entry} owned={owned} />
-            <ProgressControl entry={entry} compact />
-          </div>
+          <ProgressControl entry={entry} compact />
         </div>
       </div>
     </div>
@@ -219,7 +207,7 @@ export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
         </div>
       </div>
 
-      <OwnedBadge entry={entry} owned={owned} />
+      <OwnedBadge owned={owned} />
       {entry.scoreRaw > 0 && (
         <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground">
           <Star className="size-3 fill-warning text-warning" />

@@ -43,7 +43,12 @@ export function ProgressControl({
           <Minus className="size-3.5" />
         </button>
       )}
-      <span className="min-w-[3.5rem] text-center text-sm tabular-nums">
+      <span
+        className={cn(
+          "text-center text-sm tabular-nums",
+          compact ? "min-w-[2.75rem]" : "min-w-[3.5rem]",
+        )}
+      >
         <span className="font-semibold">{entry.progress}</span>
         <span className="text-muted-foreground"> / {total ?? "?"}</span>
       </span>
