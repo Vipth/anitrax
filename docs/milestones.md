@@ -115,7 +115,7 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M5 — RSS auto-download (qBittorrent)  *(built 2026-09-10, acceptance owed)*
+## ✅ M5 — RSS auto-download (qBittorrent)  *(done)*
 
 - ✅ `/rss` — feed manager (add / enable / remove, last-check time + last error)
   and rule builder: bind a rule to a tracked show, set title-contains, release
@@ -147,10 +147,10 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
   column beyond that.
 - ✅ 12 RSS unit tests (feeds parse + rule decisions); `cargo test` + `vitest`
   green.
-- ⏳ **Acceptance mostly done** (2026-09-10, live qBittorrent + Nyaa feed):
-  rules add torrents, and the **category + save path land on the torrent** ✅.
-  Still to eyeball: "add paused" state, and that a second poll doesn't re-add an
-  item already in `rss_history`.
+- ✅ **Acceptance passed** (2026-09-10) — live qBittorrent + a Nyaa feed: a rule
+  adds the matched torrent with the configured category + save path, honours
+  "add paused", and a second poll does not re-add an item already in
+  `rss_history`.
 
 ---
 
