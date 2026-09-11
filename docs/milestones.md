@@ -225,6 +225,50 @@ forces the cross-platform build story to exist.
 
 ---
 
+## M9 — Your schedule (airing calendar)
+
+A month-at-a-glance calendar of every airing show in your library: which
+episode drops on which day, and at what time, in your local timezone.
+
+- **`/schedule` route** — monthly calendar grid (prev / next month, "Today"
+  jump, today's cell highlighted, leading/trailing days from adjacent months
+  dimmed). Each day cell lists that day's releases sorted by air time:
+  small poster, show title, **episode number + episode title**, local time
+  (`Intl.DateTimeFormat`, honours 12h/24h locale). Cells that overflow show
+  "+N more", which opens a day popover with the full list. Clicking an entry
+  opens media detail.
+- **Which shows** — library entries whose media is `RELEASING` or
+  `NOT_YET_RELEASED`. Status filter chips: Watching (default on), Planning,
+  Paused. Shows not in the library never appear.
+- **Data: `airingSchedules`, not `nextAiringEpisode`** — today the cache only
+  holds the single next episode per show, which can't fill a month. New paged
+  query: `Page { airingSchedules(mediaId_in: [...], airingAt_greater,
+  airingAt_lesser) { mediaId episode airingAt } }` for the visible grid range
+  (month + padding weeks). Goes through the `AniListGateway` like everything
+  else; ~30 weekly shows is ~130 rows ≈ 3 pages of 50.
+- **Cache** — migration `0008_airing_schedule` (`airing_schedule` keyed on
+  service + media id + episode, `schedule_state` per month range). TTL 12h for
+  the current/future months, 30d for past months; a list sync that adds or
+  drops an airing show marks the affected months stale. Offline = render from
+  the cache, same as the library.
+- **Episode titles** — AniList's schedule has no per-episode name. Pull
+  `streamingEpisodes { title }` in the same request where available (mostly
+  licensed shows, and usually only once an episode is out); fall back to
+  "Episode N". Don't scrape a second source for this.
+- **Status tints** — next unwatched episode (`progress + 1`) highlighted;
+  episodes you're already behind on marked; owned-on-disk badge from M3 on past
+  days; a subtle "premiere" / "finale" tag when `episode == 1` /
+  `episode == episodes`.
+- **Settings** — week starts on Monday / Sunday (default from locale).
+- **Sidebar** — Schedule entry after Seasons (`CalendarDays` icon); nav becomes
+  Library / Discover / Seasons / Schedule / Local files / RSS / Stats /
+  Settings, hotkeys 1–8.
+- **Tests** — month grid generation (leading/trailing days, week start, 6-row
+  months); bucketing `airingAt` into local days across midnight + DST
+  boundaries; paged-response merge + dedupe; title fallback.
+
+---
+
 ## Backlog / polish
 
 - ~~**Sidebar logo**~~ — done (2026-09-10). `Wordmark.tsx`: `[AniTrax]` —
@@ -262,6 +306,10 @@ forces the cross-platform build story to exist.
 - **M8:** publish a dummy higher-versioned release → the app detects it at
   launch, shows the prompt with notes, downloads, installs, and relaunches on the
   new version; an unsigned or tampered bundle is rejected
+- **M9:** the current month's calendar matches the airing times on each show's
+  AniList page (converted to local time); every airing Watching show appears
+  on the right days; flipping months stays within the gateway budget and a
+  revisit inside the TTL makes zero requests; offline relaunch still renders
 
 ---
 
