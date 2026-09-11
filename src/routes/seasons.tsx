@@ -13,6 +13,7 @@ import { MediaPoster } from "@/components/media/MediaPoster";
 import { AiringBadge } from "@/components/media/AiringBadge";
 import { useAddEntry, useCurrentSeason, useLibrary, useSeason } from "@/lib/hooks";
 import { FORMAT_LABEL, mediaTitle } from "@/lib/format";
+import { useUi } from "@/stores/ui";
 import { toast } from "@/stores/toast";
 import { errorKind, errorMessage } from "@/lib/types";
 import type { Media, MediaFormat, MediaSeasonName } from "@/lib/types";
@@ -40,12 +41,14 @@ const FORMATS: { value: MediaFormat | "ALL"; label: string }[] = [
 
 function SeasonsPage() {
   const { data: current } = useCurrentSeason();
-  const [sel, setSel] = React.useState<{
-    year: number;
-    season: MediaSeasonName;
-  } | null>(null);
-  const [format, setFormat] = React.useState<MediaFormat | "ALL">("ALL");
-  const [genre, setGenre] = React.useState<string>("ALL");
+  // Selection + filters live in the UI store so opening a show and hitting back
+  // returns you to the season you were browsing (see stores/ui.ts).
+  const sel = useUi((s) => s.seasonSel);
+  const setSel = useUi((s) => s.setSeasonSel);
+  const format = useUi((s) => s.seasonFormat);
+  const setFormat = useUi((s) => s.setSeasonFormat);
+  const genre = useUi((s) => s.seasonGenre);
+  const setGenre = useUi((s) => s.setSeasonGenre);
 
   const active = sel ?? current ?? null;
 

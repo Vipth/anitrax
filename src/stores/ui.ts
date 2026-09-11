@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { MediaFormat, MediaSeasonName } from "@/lib/types";
 
 interface UiState {
   helpOpen: boolean;
@@ -24,6 +25,16 @@ interface UiState {
    * should land you on your search, not a blank box. */
   discoverQuery: string;
   setDiscoverQuery: (v: string) => void;
+
+  /** Season browser selection + filters — same idea again: opening a show
+   * and hitting back should return you to the season you were browsing, not
+   * snap to the current one. `null` season = follow the current season. */
+  seasonSel: { year: number; season: MediaSeasonName } | null;
+  setSeasonSel: (v: { year: number; season: MediaSeasonName }) => void;
+  seasonFormat: MediaFormat | "ALL";
+  setSeasonFormat: (v: MediaFormat | "ALL") => void;
+  seasonGenre: string;
+  setSeasonGenre: (v: string) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -43,4 +54,11 @@ export const useUi = create<UiState>((set) => ({
 
   discoverQuery: "",
   setDiscoverQuery: (discoverQuery) => set({ discoverQuery }),
+
+  seasonSel: null,
+  setSeasonSel: (seasonSel) => set({ seasonSel }),
+  seasonFormat: "ALL",
+  setSeasonFormat: (seasonFormat) => set({ seasonFormat }),
+  seasonGenre: "ALL",
+  setSeasonGenre: (seasonGenre) => set({ seasonGenre }),
 }));

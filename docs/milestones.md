@@ -235,13 +235,11 @@ forces the cross-platform build story to exist.
 
 ## Known bugs
 
-- **Season viewer loses its place on back-nav** — browse to an older
-  year/season in `/seasons`, open an anime, hit Back → you land on the current
-  season, not the one you were viewing. `seasons.tsx` keeps the selected
-  year / season / format / genre in `React.useState`, so the route remounts at
-  its default (current season) when you navigate back to it. Fix: move that
-  state into URL search params (`validateSearch` + `Route.useSearch()` /
-  `navigate({ search })`), same pattern as the discover-search back-nav.
+- ~~**Season viewer loses its place on back-nav**~~ — fixed 2026-09-10. The
+  selected year / season / format / genre now live in the `useUi` store
+  (`seasonSel` / `seasonFormat` / `seasonGenre`) instead of `React.useState`, so
+  the `/seasons` route keeps its place when you open a show and come back — same
+  pattern already used for the library filter and discover search.
 
 ---
 
