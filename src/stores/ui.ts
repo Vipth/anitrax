@@ -31,6 +31,8 @@ interface UiState {
    * snap to the current one. `null` season = follow the current season. */
   seasonSel: { year: number; season: MediaSeasonName } | null;
   setSeasonSel: (v: { year: number; season: MediaSeasonName }) => void;
+  /** Back to "follow the current season". */
+  clearSeasonSel: () => void;
   seasonFormat: MediaFormat | "ALL";
   setSeasonFormat: (v: MediaFormat | "ALL") => void;
   seasonGenre: string;
@@ -57,6 +59,7 @@ export const useUi = create<UiState>((set) => ({
 
   seasonSel: null,
   setSeasonSel: (seasonSel) => set({ seasonSel }),
+  clearSeasonSel: () => set({ seasonSel: null }),
   seasonFormat: "ALL",
   setSeasonFormat: (seasonFormat) => set({ seasonFormat }),
   seasonGenre: "ALL",

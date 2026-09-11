@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, CloudOff, Plus } from "lucide-react";
+import { CalendarCheck, CalendarClock, Check, CloudOff, Plus } from "lucide-react";
 import { Segmented, Skeleton } from "@/components/ui/primitives";
 import {
   Select,
@@ -45,12 +45,21 @@ function SeasonsPage() {
   // returns you to the season you were browsing (see stores/ui.ts).
   const sel = useUi((s) => s.seasonSel);
   const setSel = useUi((s) => s.setSeasonSel);
+  const clearSel = useUi((s) => s.clearSeasonSel);
   const format = useUi((s) => s.seasonFormat);
   const setFormat = useUi((s) => s.setSeasonFormat);
   const genre = useUi((s) => s.seasonGenre);
   const setGenre = useUi((s) => s.setSeasonGenre);
 
   const active = sel ?? current ?? null;
+  const isCurrent =
+    active != null &&
+    current != null &&
+    active.year === current.year &&
+    active.season === current.season;
+  const currentLabel = current
+    ? `${SEASONS.find((s) => s.value === current.season)?.label ?? current.season} ${current.year}`
+    : "";
 
   const { data, isLoading, isFetching, error } = useSeason(
     active?.year ?? 0,
@@ -110,6 +119,23 @@ function SeasonsPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {current &&
+          (isCurrent ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1.5 text-[11px] font-medium text-primary">
+              <CalendarCheck className="size-3" />
+              Current season
+            </span>
+          ) : (
+            <button
+              onClick={clearSel}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+              title="Jump to the current season"
+            >
+              <CalendarClock className="size-3" />
+              {currentLabel}
+            </button>
+          ))}
 
         <div className="mx-1 h-5 w-px bg-border" />
 
