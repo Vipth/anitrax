@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect x="0" y="0" width="1024" height="1024" rx="184" fill="#111816"/>
+
+  <path d="M 292 236 L 150 236 L 150 788 L 292 788"
+        fill="none" stroke="#3cc88b" stroke-width="88"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 732 236 L 874 236 L 874 788 L 732 788"
+        fill="none" stroke="#3cc88b" stroke-width="88"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="512" y="761" text-anchor="middle" textLength="364" lengthAdjust="spacingAndGlyphs"
+        font-family="Segoe UI, Arial, sans-serif" font-weight="800" font-size="680"
+        fill="#3cc88b">A</text>
+</svg>
