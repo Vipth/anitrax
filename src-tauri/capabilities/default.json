@@ -5,6 +5,7 @@
   "windows": ["main", "playback-*"],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
     "opener:default",
     "opener:allow-open-url",
     "dialog:default",

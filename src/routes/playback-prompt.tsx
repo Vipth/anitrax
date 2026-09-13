@@ -24,6 +24,14 @@ interface PopupData {
 // A window this small doesn't get to close itself indefinitely.
 const AUTO_DISMISS_MS = 30_000;
 
+/** `close()` can reject (missing permission, already-closing window, …) —
+ * never let that silently strand the popup on screen. */
+function closeSelf() {
+  getCurrentWindow()
+    .close()
+    .catch((e) => console.error("playback popup: close failed", e));
+}
+
 function PlaybackPromptPage() {
   const [data] = React.useState<PopupData | null>(
     () => (window as unknown as { __playbackPopup?: PopupData }).__playbackPopup ?? null,
@@ -32,9 +40,7 @@ function PlaybackPromptPage() {
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    const id = setTimeout(() => {
-      getCurrentWindow().close();
-    }, AUTO_DISMISS_MS);
+    const id = setTimeout(closeSelf, AUTO_DISMISS_MS);
     return () => clearTimeout(id);
   }, []);
 
@@ -56,8 +62,10 @@ function PlaybackPromptPage() {
         status,
       });
       await emit("entries-updated");
+    } catch (e) {
+      console.error("playback popup: bump failed", e);
     } finally {
-      getCurrentWindow().close();
+      closeSelf();
     }
   };
 
@@ -69,7 +77,7 @@ function PlaybackPromptPage() {
       </div>
       <div className="flex justify-end gap-2">
         <button
-          onClick={() => getCurrentWindow().close()}
+          onClick={closeSelf}
           className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-border/40"
         >
           <X className="size-3.5" /> Not yet

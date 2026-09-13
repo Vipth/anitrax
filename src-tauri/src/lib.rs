@@ -44,10 +44,13 @@ fn notify_playback(app: &AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
-/// Open a small always-on-top popup window for the playback confirm prompt —
-/// a real app window rather than an OS notification, since Windows silently
-/// suppresses notification toasts while a fullscreen app has focus (exactly
-/// when this fires — you're watching something).
+/// Open a small popup window for the playback confirm prompt — a real app
+/// window rather than an OS notification, since Windows silently suppresses
+/// notification toasts while a fullscreen app has focus (exactly when this
+/// fires — you're watching something). Not pinned always-on-top; it's
+/// created focused, which is enough to land above a borderless-fullscreen
+/// video player (the common case) without permanently floating over
+/// everything afterwards.
 fn show_playback_popup(
     app: &AppHandle,
     service: &str,
@@ -94,11 +97,10 @@ fn show_playback_popup(
     .title("AniTrax")
     .inner_size(WIN_W, WIN_H)
     .position(x, y)
-    .always_on_top(true)
     .decorations(false)
     .resizable(false)
     .skip_taskbar(true)
-    .focused(false)
+    .focused(true)
     .initialization_script(&init_script)
     .build();
 
