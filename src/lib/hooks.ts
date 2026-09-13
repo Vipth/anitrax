@@ -7,8 +7,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./ipc";
 import { qk } from "./query";
-import { toast } from "@/stores/toast";
-import type { EntryPatch, ListStatus, MediaListEntry, WatchSessionView } from "./types";
+import type { EntryPatch, MediaListEntry } from "./types";
 
 export function useLibrary() {
   return useQuery({
@@ -300,45 +299,8 @@ export function useNowWatching() {
   });
 }
 
-/**
- * Confirm-mode prompts from the backend: a tracked episode crossed its
- * "probably watched" threshold. Shows an actionable toast to bump progress —
- * mirrors the same completion logic as the manual +1 button and the backend's
- * own silent-mode bump (`sync::bump_from_playback`).
- */
-export function usePlaybackEvents() {
-  const qc = useQueryClient();
-  const edit = useEditEntry();
-  useEffect(() => {
-    const un = listen<WatchSessionView>("playback-confirm", (e) => {
-      const ev = e.payload;
-      const bump = () => {
-        const entries = qc.getQueryData<MediaListEntry[]>(qk.library());
-        const entry = entries?.find((x) => x.media.id.id === ev.mediaId);
-        const status: ListStatus | undefined =
-          ev.episodesTotal === ev.episode && entry?.status === "CURRENT"
-            ? "COMPLETED"
-            : undefined;
-        edit.mutate(
-          {
-            mediaId: ev.mediaId,
-            remoteId: entry?.remoteId,
-            progress: ev.episode,
-            status,
-          },
-          {
-            onSuccess: () =>
-              toast.success("Progress updated", `${ev.title} — episode ${ev.episode}`),
-          },
-        );
-      };
-      toast.prompt(`Finished episode ${ev.episode}?`, ev.title, {
-        label: "Bump progress",
-        onClick: bump,
-      });
-    });
-    return () => {
-      un.then((f) => f());
-    };
-  }, [qc, edit]);
-}
+// Confirm-mode prompts used to be an in-app toast fired from a
+// "playback-confirm" event; that's now a dedicated popup window
+// (`show_playback_popup` in lib.rs, `routes/playback-prompt.tsx`) since a
+// same-window toast is invisible behind a fullscreen player and OS
+// notifications get silently eaten by Windows' fullscreen focus assist.

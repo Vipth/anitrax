@@ -175,12 +175,24 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
   2026-09-13 per explicit request, trading "waits until the episode's
   actually almost over" for "fires quickly and predictably regardless of
   length" — revisit if that trade stops making sense.)
-- ✅ A background poll (15s) checks for sessions past their threshold. Confirm
-  mode fires a `playback-confirm` event (an actionable "Bump progress" toast,
-  new to the toast store) *and* a desktop notification, so it's not missed
-  while minimised to tray. Silent mode calls `sync::bump_from_playback`
-  directly — same "complete the show if this was the last episode" logic as
-  the manual +1 button — and notifies quietly.
+- ✅ A background poll (15s) checks for sessions past their threshold. Silent
+  mode calls `sync::bump_from_playback` directly — same "complete the show if
+  this was the last episode" logic as the manual +1 button — and notifies
+  quietly (OS notification; fine here since you're not necessarily watching
+  right then). Confirm mode opens a **dedicated popup window**
+  (`show_playback_popup` in `lib.rs`, small/always-on-top/no-decorations,
+  bottom-right of the primary monitor, route `playback-prompt.tsx`) instead
+  of an in-app toast or OS notification — both of those turned out unreliable
+  for this specific case: a same-window toast is invisible behind a
+  fullscreen player, and Windows silently drops notification toasts under its
+  fullscreen focus-assist rule (confirmed via a real test — nothing even
+  reached Action Center). A real app window is exempt from both. Auto-closes
+  after 30s if ignored; data reaches the popup via a Tauri
+  `initialization_script` (`window.__playbackPopup`), not URL params.
+  Its own capability entry (`capabilities/default.json`, `windows: ["main",
+  "playback-*"]`) — window-scoped permissions are per-label in Tauri 2, so a
+  new window label needs an explicit grant or every command call from it is
+  silently rejected.
 - ✅ Any progress edit (manual, silent-bumped, or otherwise) retires tracked
   sessions at or below the new progress, so a stale timer can't fire after
   you've already moved past it.

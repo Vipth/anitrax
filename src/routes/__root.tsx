@@ -12,12 +12,7 @@ import { CloudOff, Play } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
-import {
-  useBackendEvents,
-  useBudget,
-  useNowWatching,
-  usePlaybackEvents,
-} from "@/lib/hooks";
+import { useBackendEvents, useBudget, useNowWatching } from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
@@ -30,7 +25,6 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   useBackendEvents();
-  usePlaybackEvents();
   const theme = usePrefs((s) => s.theme);
   const navigate = useNavigate();
   const helpOpen = useUi((s) => s.helpOpen);
@@ -145,6 +139,12 @@ function RootLayout() {
       unlisten.forEach((p) => p.then((f) => f()));
     };
   }, []);
+
+  // The M6a playback-confirm popup is a separate, tiny always-on-top window
+  // (see show_playback_popup in lib.rs) — it gets none of the normal chrome.
+  if (router.state.location.pathname === "/playback-prompt") {
+    return <Outlet />;
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">

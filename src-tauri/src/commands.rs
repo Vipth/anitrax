@@ -382,8 +382,16 @@ pub async fn play_episode(
     // M6a: track this episode for auto-progress detection. Best-effort — a
     // failure here shouldn't stop the file from having opened.
     match sync::prepare_watch_session(&state, service.as_deref(), media_id, episode).await {
-        Ok(Some(session)) => state.playback.start(session),
-        Ok(None) => {}
+        Ok(Some(session)) => {
+            tracing::info!(
+                title = %session.title,
+                episode,
+                threshold_secs = session.threshold.as_secs(),
+                "playback tracking started"
+            );
+            state.playback.start(session);
+        }
+        Ok(None) => tracing::debug!(media_id, episode, "playback tracking skipped (see prepare_watch_session gates)"),
         Err(e) => tracing::warn!(?e, "couldn't prepare playback tracking"),
     }
     Ok(())

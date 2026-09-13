@@ -44,6 +44,69 @@ fn notify_playback(app: &AppHandle, title: &str, body: &str) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
+/// Open a small always-on-top popup window for the playback confirm prompt —
+/// a real app window rather than an OS notification, since Windows silently
+/// suppresses notification toasts while a fullscreen app has focus (exactly
+/// when this fires — you're watching something).
+fn show_playback_popup(
+    app: &AppHandle,
+    service: &str,
+    media_id: i64,
+    episode: i64,
+    title: &str,
+    episodes_total: Option<i64>,
+) {
+    let label = format!("playback-{service}-{media_id}-{episode}");
+    if app.get_webview_window(&label).is_some() {
+        return; // already showing this exact prompt
+    }
+
+    let payload = serde_json::json!({
+        "service": service,
+        "mediaId": media_id,
+        "episode": episode,
+        "title": title,
+        "episodesTotal": episodes_total,
+    });
+    let init_script = format!("window.__playbackPopup = {payload};");
+
+    const WIN_W: f64 = 360.0;
+    const WIN_H: f64 = 160.0;
+    let (x, y) = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|m| {
+            let pos = m.position();
+            let size = m.size();
+            let scale = m.scale_factor();
+            let right = (pos.x as f64 + size.width as f64) / scale;
+            let bottom = (pos.y as f64 + size.height as f64) / scale;
+            (right - WIN_W - 24.0, bottom - WIN_H - 24.0)
+        })
+        .unwrap_or((900.0, 700.0));
+
+    let result = tauri::WebviewWindowBuilder::new(
+        app,
+        &label,
+        tauri::WebviewUrl::App("/playback-prompt".into()),
+    )
+    .title("AniTrax")
+    .inner_size(WIN_W, WIN_H)
+    .position(x, y)
+    .always_on_top(true)
+    .decorations(false)
+    .resizable(false)
+    .skip_taskbar(true)
+    .focused(false)
+    .initialization_script(&init_script)
+    .build();
+
+    if let Err(e) = result {
+        tracing::warn!(?e, "couldn't open playback popup window");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -423,6 +486,7 @@ pub fn run() {
                                 .await
                                 {
                                     Ok(_) => {
+                                        tracing::info!(title = %item.title, episode = item.episode, "playback bumped (silent mode)");
                                         let _ = h.emit("entries-updated", ());
                                         notify_playback(
                                             &h,
@@ -436,14 +500,14 @@ pub fn run() {
                                     Err(e) => tracing::warn!(?e, "playback auto-bump failed"),
                                 }
                             } else {
-                                let _ = h.emit("playback-confirm", &item);
-                                notify_playback(
+                                tracing::info!(title = %item.title, episode = item.episode, "playback confirm firing");
+                                show_playback_popup(
                                     &h,
-                                    "Finished an episode?",
-                                    &format!(
-                                        "{} — episode {}. Open AniTrax to confirm.",
-                                        item.title, item.episode
-                                    ),
+                                    &item.service,
+                                    item.media_id,
+                                    item.episode,
+                                    &item.title,
+                                    item.episodes_total,
                                 );
                             }
                         }
