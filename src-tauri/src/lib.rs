@@ -123,6 +123,9 @@ pub fn run() {
             commands::set_playback_enabled,
             commands::set_playback_mode,
             commands::now_watching,
+            commands::known_players,
+            commands::set_playback_window_detect,
+            commands::set_monitored_players,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -443,6 +446,25 @@ pub fn run() {
                                     ),
                                 );
                             }
+                        }
+                    }
+                });
+            }
+
+            // M6b — foreground-window detection: notice a show playing in any
+            // monitored player, not just ones AniTrax itself launched. Off by
+            // default (`PLAYBACK_WINDOW_DETECT_KEY`); feeds the same tracker
+            // 6a uses, so the threshold/confirm/silent handling above applies
+            // unchanged regardless of which phase found the episode.
+            {
+                let s = state.clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        tokio::time::sleep(sync::WINDOW_DETECT_POLL_EVERY).await;
+                        match sync::detect_foreground_playback(&s).await {
+                            Ok(Some(session)) => s.playback.touch_or_start(session),
+                            Ok(None) => {}
+                            Err(e) => tracing::warn!(?e, "foreground playback detection error"),
                         }
                     }
                 });

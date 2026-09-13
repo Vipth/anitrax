@@ -281,6 +281,15 @@ export function useBackendEvents() {
 // M6a — playback detection
 // --------------------------------------------------------------------------- //
 
+/** The static reference list of players AniTrax knows how to recognise. */
+export function useKnownPlayers() {
+  return useQuery({
+    queryKey: qk.knownPlayers,
+    queryFn: () => api.knownPlayers(),
+    staleTime: Infinity,
+  });
+}
+
 /** Episodes currently tracked for auto-progress — drives the "Now watching" strip. */
 export function useNowWatching() {
   return useQuery({

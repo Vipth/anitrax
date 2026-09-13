@@ -27,6 +27,8 @@ pub struct AppSettings {
     pub start_minimized: bool,
     pub playback_enabled: bool,
     pub playback_mode: String,
+    pub playback_window_detect: bool,
+    pub monitored_players: Vec<String>,
 }
 
 #[tauri::command]
@@ -56,6 +58,13 @@ pub async fn get_settings(
             .await?
             .and_then(|v| v.as_str().map(str::to_owned))
             .unwrap_or_else(|| "confirm".into()),
+        playback_window_detect: repo::get_bool_setting(
+            &state.db,
+            sync::PLAYBACK_WINDOW_DETECT_KEY,
+            false,
+        )
+        .await?,
+        monitored_players: repo::enabled_players(&state.db).await?,
     })
 }
 
@@ -113,6 +122,41 @@ pub async fn set_playback_mode(state: State<'_, AppState>, mode: String) -> AppR
 #[tauri::command]
 pub fn now_watching(state: State<'_, AppState>) -> Vec<crate::playback::WatchSessionView> {
     state.playback.list()
+}
+
+/// M6b — foreground-window detection.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnownPlayer {
+    pub exe: String,
+    pub label: String,
+}
+
+#[tauri::command]
+pub fn known_players() -> Vec<KnownPlayer> {
+    crate::playback::detect::KNOWN_PLAYERS
+        .iter()
+        .map(|(exe, label)| KnownPlayer {
+            exe: exe.to_string(),
+            label: label.to_string(),
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn set_playback_window_detect(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::PLAYBACK_WINDOW_DETECT_KEY, enabled).await
+}
+
+#[tauri::command]
+pub async fn set_monitored_players(
+    state: State<'_, AppState>,
+    players: Vec<String>,
+) -> AppResult<()> {
+    repo::set_enabled_players(&state.db, &players).await
 }
 
 #[tauri::command]

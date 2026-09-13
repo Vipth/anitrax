@@ -116,6 +116,13 @@ export interface AppSettings {
   startMinimized: boolean;
   playbackEnabled: boolean;
   playbackMode: PlaybackMode;
+  playbackWindowDetect: boolean;
+  monitoredPlayers: string[];
+}
+
+export interface KnownPlayer {
+  exe: string;
+  label: string;
 }
 
 // M6a — playback detection (mirrors `src-tauri/src/playback/mod.rs`).

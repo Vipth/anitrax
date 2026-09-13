@@ -5,6 +5,7 @@ import type {
   BudgetSnapshot,
   CurrentSeason,
   EntryPatch,
+  KnownPlayer,
   LibraryFile,
   LibraryFolder,
   LinkRule,
@@ -51,6 +52,14 @@ export const api = {
     invoke<void>("set_playback_mode", { mode }),
 
   nowWatching: () => invoke<WatchSessionView[]>("now_watching"),
+
+  knownPlayers: () => invoke<KnownPlayer[]>("known_players"),
+
+  setPlaybackWindowDetect: (enabled: boolean) =>
+    invoke<void>("set_playback_window_detect", { enabled }),
+
+  setMonitoredPlayers: (players: string[]) =>
+    invoke<void>("set_monitored_players", { players }),
 
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
 

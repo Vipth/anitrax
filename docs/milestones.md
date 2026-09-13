@@ -200,14 +200,45 @@ Reuses the push pipeline.
   "watched." Per-show opt-out and a watched-% threshold setting are also not
   yet exposed (the 80%/-3min rule is fixed).
 
-**6b — detect any player.** A background monitor reads the foreground media
-player's window title (Windows: `windows` crate; macOS: Accessibility; Linux:
-MPRIS/X11), parses it with the anitomy code from M3, matches to `media_cache`
-with the M3 matcher. Player list + per-player enable in Settings.
+**6b — detect any player.** *(built 2026-09-13, acceptance owed)* A background
+monitor reads the foreground media player's window title, parses it with the
+anitomy code from M3, matches to `media_cache` with the M3 matcher. Off by
+default — opt-in on top of 6a. Player list + per-player enable in Settings.
+
+- ✅ `active-win-pos-rs` (Win32 / macOS Accessibility / Linux X11 — one
+  dependency covers all three targets from the original plan) reads the
+  focused window's process + title every 10s
+  (`sync::WINDOW_DETECT_POLL_EVERY`), gated on `PLAYBACK_WINDOW_DETECT_KEY`
+  (default off) and the per-player `enabled_players` list (defaults to every
+  known player once window-detect itself is turned on).
+- ✅ `playback::detect::strip_player_chrome` trims a known player's own
+  trailing title decoration ("… - VLC media player") before handing the rest
+  to `scanner::parse_name` — same anitomy parse M3 uses on filenames.
+- ✅ Matches via `matcher::best_match` against `repo::media_match_index` (the
+  same cache-only index M3 file-matching uses) — a show has to already be
+  cached (synced or searched) to be recognised, same limitation M3 has.
+- ✅ Feeds the **exact same** `sync::prepare_watch_session` /
+  `PlaybackTracker` pipeline 6a built — same threshold math, same
+  confirm/silent handling, same "only ever `progress + 1`" guard. A new
+  `touch_or_start` (vs. 6a's `start`) means re-detecting the same still-playing
+  episode on every 10s poll doesn't keep resetting its clock.
+- ✅ Settings: "Detect any player" toggle (under the base playback-detection
+  section) + a monitored-players checklist (VLC, MPC-HC/BE ×2 bitness, mpv,
+  PotPlayer ×2, WMP, SMPlayer).
+- ✅ 3 unit tests for `strip_player_chrome` (known-player suffix stripping,
+  unrecognised players left alone, never over-stripping a title that's pure
+  chrome).
+- ⏳ **Acceptance owed** — needs a real player: open an episode directly in
+  VLC/mpv/MPC-HC (not via AniTrax's Play button) and confirm it's recognised,
+  tracked, and prompts/bumps the same way a self-launched one does.
+- Since this shares 6a's tracker, it inherits the same wall-clock-only
+  limitation — no real position, just "the window's been up a while."
 
 **6c — richer player hooks.** mpv JSON IPC, VLC HTTP interface, MPC-HC/BE web
 interface — exact position/duration/path instead of guessing from a title,
-and true "watched" detection independent of wall-clock heuristics.
+and true "watched" detection independent of wall-clock heuristics. Also the
+place to fix 6a/6b's shared blind spot (pausing/seeking away doesn't stop the
+clock).
 
 - Unit tests: window title → (show, episode); position → watched / not-yet
 

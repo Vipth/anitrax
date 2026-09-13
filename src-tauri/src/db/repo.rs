@@ -1601,6 +1601,33 @@ pub async fn get_qb_config(db: &Db) -> AppResult<QbConfig> {
         .unwrap_or_default())
 }
 
+// --------------------------------------------------------------------------- //
+// Playback detection (M6b) — monitored-player list
+// --------------------------------------------------------------------------- //
+
+/// Currently-enabled player exe names. Unset = every known player is enabled
+/// (there's nothing to opt out of until the user narrows it down).
+pub async fn enabled_players(db: &Db) -> AppResult<Vec<String>> {
+    Ok(get_setting(db, crate::sync::PLAYBACK_MONITORED_PLAYERS_KEY)
+        .await?
+        .and_then(|v| serde_json::from_value::<Vec<String>>(v).ok())
+        .unwrap_or_else(|| {
+            crate::playback::detect::KNOWN_PLAYERS
+                .iter()
+                .map(|(exe, _)| exe.to_string())
+                .collect()
+        }))
+}
+
+pub async fn set_enabled_players(db: &Db, players: &[String]) -> AppResult<()> {
+    set_setting(
+        db,
+        crate::sync::PLAYBACK_MONITORED_PLAYERS_KEY,
+        &serde_json::to_value(players)?,
+    )
+    .await
+}
+
 pub async fn set_qb_config(db: &Db, cfg: &QbConfig) -> AppResult<()> {
     set_setting(db, QB_CONFIG_KEY, &serde_json::to_value(cfg)?).await
 }

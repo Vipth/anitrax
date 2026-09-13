@@ -108,6 +108,13 @@ pub const PLAYBACK_MODE_KEY: &str = "playback_mode";
 /// How often the playback tracker is checked for episodes that have crossed
 /// their "probably watched" threshold.
 pub const PLAYBACK_POLL_EVERY: Duration = Duration::from_secs(15);
+/// M6b — foreground-window detection. Off by default: reading the title of
+/// whatever window is focused is a step up in what the app looks at, so it's
+/// an explicit opt-in on top of the base playback-detection toggle.
+pub const PLAYBACK_WINDOW_DETECT_KEY: &str = "playback_window_detect";
+pub const PLAYBACK_MONITORED_PLAYERS_KEY: &str = "playback_monitored_players";
+/// How often the foreground window is checked.
+pub const WINDOW_DETECT_POLL_EVERY: Duration = Duration::from_secs(10);
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".
@@ -436,6 +443,44 @@ pub async fn bump_from_playback(
         ..Default::default()
     };
     edit_entry(state, Some(service), patch).await
+}
+
+/// M6b: check whatever window currently has focus. If it's a monitored player
+/// showing what looks like an anime episode that's on the user's list, feed it
+/// into the same tracker `prepare_watch_session` uses for self-launched
+/// playback — same threshold, same confirm/silent handling.
+pub async fn detect_foreground_playback(
+    state: &AppState,
+) -> AppResult<Option<crate::playback::WatchSession>> {
+    if !repo::get_bool_setting(&state.db, PLAYBACK_WINDOW_DETECT_KEY, false).await? {
+        return Ok(None);
+    }
+    let Some(win) = crate::playback::detect::foreground_window() else {
+        return Ok(None);
+    };
+    let enabled = repo::enabled_players(&state.db).await?;
+    if !enabled.iter().any(|p| p.eq_ignore_ascii_case(&win.process)) {
+        return Ok(None);
+    }
+
+    let cleaned = crate::playback::detect::strip_player_chrome(&win.title, &win.process);
+    let parsed = scanner::parse_name(&cleaned);
+    let (Some(title), Some(episode)) = (parsed.title, parsed.episode) else {
+        return Ok(None);
+    };
+
+    let index = repo::media_match_index(&state.db).await?;
+    let Some(m) = matcher::best_match(
+        &title,
+        None,
+        parsed.season,
+        parsed.year.map(|y| y as i32),
+        &index,
+    ) else {
+        return Ok(None);
+    };
+
+    prepare_watch_session(state, Some(m.service.as_str()), m.media_id, episode).await
 }
 
 /// Absolute path of the local file for one episode. Errors if it isn't on disk.

@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
 import {
+  useKnownPlayers,
   useLibraryFolders,
   useQbConfig,
   useScanLibrary,
@@ -529,9 +530,12 @@ function QbittorrentSettings() {
 
 function PlaybackSettings() {
   const { data: settings } = useSettings();
+  const { data: players } = useKnownPlayers();
   const qc = useQueryClient();
   const enabled = settings?.playbackEnabled ?? true;
   const mode = settings?.playbackMode ?? "confirm";
+  const windowDetect = settings?.playbackWindowDetect ?? false;
+  const monitored = settings?.monitoredPlayers ?? [];
 
   const toggle = useMutation({
     mutationFn: (v: boolean) => api.setPlaybackEnabled(v),
@@ -563,11 +567,48 @@ function PlaybackSettings() {
     onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
   });
 
+  const toggleWindowDetect = useMutation({
+    mutationFn: (v: boolean) => api.setPlaybackWindowDetect(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, playbackWindowDetect: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  const setPlayers = useMutation({
+    mutationFn: (v: string[]) => api.setMonitoredPlayers(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, monitoredPlayers: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  const togglePlayer = (exe: string) => {
+    const next = monitored.includes(exe)
+      ? monitored.filter((p) => p !== exe)
+      : [...monitored, exe];
+    setPlayers.mutate(next);
+  };
+
   return (
     <div className="space-y-4">
       <SettingRow
         label="Detect finished episodes"
-        hint="When you hit Play, AniTrax watches roughly how long you've had the file open. Once that's close to the episode's runtime, it offers to bump progress. No window-scraping, no player integration yet — just the episode you launched."
+        hint="When you hit Play, AniTrax watches roughly how long you've had the file open. Once that's close to the episode's runtime, it offers to bump progress."
       >
         <Switch
           checked={enabled}
@@ -576,23 +617,56 @@ function PlaybackSettings() {
         />
       </SettingRow>
       {enabled && (
-        <SettingRow
-          label="When detected"
-          hint={
-            mode === "silent"
-              ? "Bumps progress automatically, with just a quiet notification."
-              : "Asks first — a dismissible toast with a Bump progress button."
-          }
-        >
-          <Segmented
-            value={mode}
-            onChange={(v) => setMode.mutate(v)}
-            options={[
-              { value: "confirm", label: "Confirm" },
-              { value: "silent", label: "Silent" },
-            ]}
-          />
-        </SettingRow>
+        <>
+          <SettingRow
+            label="When detected"
+            hint={
+              mode === "silent"
+                ? "Bumps progress automatically, with just a quiet notification."
+                : "Asks first — a dismissible toast with a Bump progress button."
+            }
+          >
+            <Segmented
+              value={mode}
+              onChange={(v) => setMode.mutate(v)}
+              options={[
+                { value: "confirm", label: "Confirm" },
+                { value: "silent", label: "Silent" },
+              ]}
+            />
+          </SettingRow>
+
+          <SettingRow
+            label="Detect any player"
+            hint="Also reads the title of whichever media player window is focused — MPC-HC, VLC, mpv, PotPlayer, others — so a show playing outside AniTrax's own Play button still gets noticed. Only the window title is read, nothing else on your screen."
+          >
+            <Switch
+              checked={windowDetect}
+              onCheckedChange={(v) => toggleWindowDetect.mutate(v)}
+              aria-label="Detect any player"
+            />
+          </SettingRow>
+
+          {windowDetect && (
+            <div className="rounded-md border border-border p-3">
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                Monitored players
+              </p>
+              <div className="divide-y divide-border">
+                {(players ?? []).map((p) => (
+                  <div key={p.exe} className="flex items-center justify-between gap-2 py-1.5">
+                    <span className="text-sm">{p.label}</span>
+                    <Switch
+                      checked={monitored.includes(p.exe)}
+                      onCheckedChange={() => togglePlayer(p.exe)}
+                      aria-label={p.label}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

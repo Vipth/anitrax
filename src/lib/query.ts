@@ -52,4 +52,5 @@ export const qk = {
   qbConfig: ["qbConfig"] as const,
   rssPollEnabled: ["rssPollEnabled"] as const,
   nowWatching: ["nowWatching"] as const,
+  knownPlayers: ["knownPlayers"] as const,
 };

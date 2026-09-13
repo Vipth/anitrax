@@ -6,6 +6,8 @@
 //! by [`crate::sync::prepare_watch_session`], which won't track a replay of an
 //! already-seen episode).
 
+pub mod detect;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -104,6 +106,13 @@ impl PlaybackTracker {
 
     pub fn start(&self, session: WatchSession) {
         self.sessions.lock().unwrap().insert(key_of(&session), session);
+    }
+
+    /// Like `start`, but leaves an existing session's clock alone — used by
+    /// M6b's repeated foreground-window polling, where re-detecting the same
+    /// still-playing episode every poll must not keep resetting the timer.
+    pub fn touch_or_start(&self, session: WatchSession) {
+        self.sessions.lock().unwrap().entry(key_of(&session)).or_insert(session);
     }
 
     /// Drop every tracked episode for a show at or below `progress` — called
