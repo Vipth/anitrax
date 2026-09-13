@@ -228,7 +228,7 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
   actual runtime-aware timing, per-show opt-out, and a configurable delay are
   also not yet exposed (`CONFIRM_AFTER` is a fixed constant).
 
-**6b — detect any player.** *(built 2026-09-13, acceptance owed)* A background
+**6b — detect any player.** *(built 2026-09-13, accepted 2026-09-13)* A background
 monitor reads the foreground media player's window title, parses it with the
 anitomy code from M3, matches to `media_cache` with the M3 matcher. Off by
 default — opt-in on top of 6a. Player list + per-player enable in Settings.
@@ -256,9 +256,13 @@ default — opt-in on top of 6a. Player list + per-player enable in Settings.
 - ✅ 3 unit tests for `strip_player_chrome` (known-player suffix stripping,
   unrecognised players left alone, never over-stripping a title that's pure
   chrome).
-- ⏳ **Acceptance owed** — needs a real player: open an episode directly in
-  VLC/mpv/MPC-HC (not via AniTrax's Play button) and confirm it's recognised,
-  tracked, and prompts/bumps the same way a self-launched one does.
+- ✅ **Acceptance passed** (2026-09-13) — opened an episode directly in an
+  external player (not via AniTrax's Play button): recognised, tracked, and
+  prompted the same way a self-launched session does. Took longer than the
+  flat 2-minute threshold in practice, which tracks — the 10s window-detect
+  poll has to notice the foreground window before `touch_or_start` even
+  starts the clock, on top of the 2 minutes itself; confirmed acceptable
+  as-is.
 - Since this shares 6a's tracker, it inherits the same wall-clock-only
   limitation — no real position, just "the window's been up a while."
 
