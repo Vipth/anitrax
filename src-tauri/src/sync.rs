@@ -412,7 +412,6 @@ pub async fn prepare_watch_session(
         episode,
         entry.media.title.preferred(),
         entry.media.episodes.map(i64::from),
-        entry.media.duration,
     )))
 }
 

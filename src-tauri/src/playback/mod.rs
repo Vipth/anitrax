@@ -1,9 +1,9 @@
 //! Playback detection (M6a): "you hit Play, so we already know the show,
-//! episode and file — once enough wall-clock time has passed for a typical
-//! viewer to have finished it, offer to bump progress." No window-scraping,
-//! no player IPC (that's 6b/6c); this only tracks episodes opened through
-//! AniTrax's own Play button, and only ever the next unwatched one (enforced
-//! by [`crate::sync::prepare_watch_session`], which won't track a replay of an
+//! episode and file — a fixed amount of time after we notice it, offer to
+//! bump progress." No window-scraping, no player IPC (that's 6b/6c); this
+//! only tracks episodes opened through AniTrax's own Play button, and only
+//! ever the next unwatched one (enforced by
+//! [`crate::sync::prepare_watch_session`], which won't track a replay of an
 //! already-seen episode).
 
 pub mod detect;
@@ -21,10 +21,10 @@ use crate::tracker::model::ServiceKind;
 /// linger forever or fire a stale bump on wake.
 const MAX_SESSION_AGE: Duration = Duration::from_secs(6 * 3600);
 
-/// The other half of the threshold rule: "close enough to the end" means
-/// within this many minutes of the runtime, whichever this or 80% comes
-/// first (see `WatchSession::new`).
-const NEAR_END_MARGIN: Duration = Duration::from_secs(2 * 60);
+/// How long after a session starts (or is first detected) we consider the
+/// episode "probably watched" — a flat delay, not tied to the episode's
+/// actual runtime.
+pub const CONFIRM_AFTER: Duration = Duration::from_secs(2 * 60);
 
 #[derive(Debug, Clone)]
 pub struct WatchSession {
@@ -34,8 +34,7 @@ pub struct WatchSession {
     pub title: String,
     pub episodes_total: Option<i64>,
     pub started_at: Instant,
-    /// Elapsed time at which we consider the episode "probably watched" —
-    /// the earlier of ~80% of the runtime or the last few minutes of it.
+    /// Elapsed time at which we consider the episode "probably watched".
     pub threshold: Duration,
     notified: bool,
 }
@@ -47,12 +46,7 @@ impl WatchSession {
         episode: i64,
         title: String,
         episodes_total: Option<i64>,
-        duration_minutes: Option<i32>,
     ) -> Self {
-        let duration_secs = duration_minutes.filter(|m| *m > 0).unwrap_or(20) as u64 * 60;
-        let eighty_pct = duration_secs * 80 / 100;
-        let near_end = duration_secs.saturating_sub(NEAR_END_MARGIN.as_secs());
-        let threshold = Duration::from_secs(eighty_pct.min(near_end).max(60));
         Self {
             service,
             media_id,
@@ -60,7 +54,7 @@ impl WatchSession {
             title,
             episodes_total,
             started_at: Instant::now(),
-            threshold,
+            threshold: CONFIRM_AFTER,
             notified: false,
         }
     }
@@ -156,8 +150,8 @@ impl PlaybackTracker {
 mod tests {
     use super::*;
 
-    fn session(minutes: Option<i32>) -> WatchSession {
-        WatchSession::new(ServiceKind::AniList, 1, 5, "Show".into(), Some(12), minutes)
+    fn session() -> WatchSession {
+        WatchSession::new(ServiceKind::AniList, 1, 5, "Show".into(), Some(12))
     }
 
     fn backdated(mut s: WatchSession, ago: Duration) -> WatchSession {
@@ -166,21 +160,14 @@ mod tests {
     }
 
     #[test]
-    fn threshold_is_the_earlier_of_80pct_or_minus_2min() {
-        // 24 min: 80% = 19.2min, dur-2min = 22min -> 80% wins.
-        assert_eq!(session(Some(24)).threshold, Duration::from_secs(1152));
-        // 5 min: 80% = 4min, dur-2min = 3min -> dur-2min wins.
-        assert_eq!(session(Some(5)).threshold, Duration::from_secs(180));
-        // Missing duration falls back to 20 minutes, same rule.
-        assert_eq!(session(None).threshold, Duration::from_secs(960));
-        // Pathologically short duration floors at 60s, never negative/zero.
-        assert_eq!(session(Some(1)).threshold, Duration::from_secs(60));
+    fn threshold_is_a_flat_delay_regardless_of_runtime() {
+        assert_eq!(session().threshold, CONFIRM_AFTER);
     }
 
     #[test]
     fn tick_reports_a_crossed_session_exactly_once() {
         let tracker = PlaybackTracker::new();
-        tracker.start(backdated(session(Some(1)), Duration::from_secs(120)));
+        tracker.start(backdated(session(), CONFIRM_AFTER + Duration::from_secs(1)));
 
         let first = tracker.tick();
         assert_eq!(first.len(), 1);
@@ -194,7 +181,7 @@ mod tests {
     #[test]
     fn tick_ignores_a_session_still_under_threshold() {
         let tracker = PlaybackTracker::new();
-        tracker.start(session(Some(24))); // just started, threshold is ~19min out
+        tracker.start(session()); // just started, threshold is CONFIRM_AFTER out
         assert!(tracker.tick().is_empty());
         assert_eq!(tracker.list().len(), 1);
     }
@@ -202,8 +189,8 @@ mod tests {
     #[test]
     fn stop_up_to_clears_at_or_below_but_keeps_later_episodes() {
         let tracker = PlaybackTracker::new();
-        tracker.start(WatchSession::new(ServiceKind::AniList, 1, 5, "A".into(), None, None));
-        tracker.start(WatchSession::new(ServiceKind::AniList, 1, 6, "A".into(), None, None));
+        tracker.start(WatchSession::new(ServiceKind::AniList, 1, 5, "A".into(), None));
+        tracker.start(WatchSession::new(ServiceKind::AniList, 1, 6, "A".into(), None));
         tracker.stop_up_to(ServiceKind::AniList, 1, 5);
         let remaining = tracker.list();
         assert_eq!(remaining.len(), 1);
@@ -213,7 +200,7 @@ mod tests {
     #[test]
     fn stale_sessions_are_pruned_without_firing() {
         let tracker = PlaybackTracker::new();
-        tracker.start(backdated(session(Some(24)), MAX_SESSION_AGE + Duration::from_secs(1)));
+        tracker.start(backdated(session(), MAX_SESSION_AGE + Duration::from_secs(1)));
         assert!(tracker.tick().is_empty());
         assert!(tracker.list().is_empty());
     }

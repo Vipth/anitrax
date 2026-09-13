@@ -608,7 +608,7 @@ function PlaybackSettings() {
     <div className="space-y-4">
       <SettingRow
         label="Detect finished episodes"
-        hint="When you hit Play, AniTrax watches roughly how long you've had the file open. Once that's close to the episode's runtime, it offers to bump progress."
+        hint="When you hit Play, AniTrax waits a couple of minutes, then offers to bump progress — regardless of the episode's actual length."
       >
         <Switch
           checked={enabled}

@@ -161,18 +161,20 @@ makes AniTrax a full Taiga replacement. Built in phases, each useful on its own:
 
 **6a — detect what AniTrax launched.** *(built 2026-09-13, acceptance owed)*
 When you hit *Play* we already know the show, episode and file. Track the
-player process we spawned (plus mpv's IPC socket when it's mpv) and, once
-playback passes a threshold (~80% or the last few minutes), offer to bump
-progress — a toast by default, silent if you opt in. Zero window-scraping.
-Reuses the push pipeline.
+player process we spawned (plus mpv's IPC socket when it's mpv) and, a fixed
+delay after playback starts, offer to bump progress — a toast by default,
+silent if you opt in. Zero window-scraping. Reuses the push pipeline.
 
 - ✅ `src-tauri/src/playback/` — a `PlaybackTracker` on `AppState` (in-memory,
   not persisted) keyed by (service, media, episode). `play_episode` registers
   a session only when the episode is genuinely `progress + 1` — never a
-  rewatch or a batch jump-ahead — via `sync::prepare_watch_session`, which also
-  reads the cached episode `duration` to size the threshold: the earlier of
-  ~80% of the runtime or (runtime − 2 min), floored at 60s, defaulting to a
-  20-minute episode when duration is unknown.
+  rewatch or a batch jump-ahead — via `sync::prepare_watch_session`.
+  Threshold is `playback::CONFIRM_AFTER`, a **flat 2 minutes** after the
+  session starts (or is first detected) — not tied to the episode's runtime.
+  (Originally sized off ~80% of the cached duration; changed to a flat delay
+  2026-09-13 per explicit request, trading "waits until the episode's
+  actually almost over" for "fires quickly and predictably regardless of
+  length" — revisit if that trade stops making sense.)
 - ✅ A background poll (15s) checks for sessions past their threshold. Confirm
   mode fires a `playback-confirm` event (an actionable "Bump progress" toast,
   new to the toast store) *and* a desktop notification, so it's not missed
@@ -196,9 +198,9 @@ Reuses the push pipeline.
   bumps with no prompt.
 - Explicitly **not** in this pass: real player-process tracking (exit
   detection) and mpv IPC — this heuristic is wall-clock-since-Play only, so
-  walking away mid-episode and coming back past the threshold still counts as
-  "watched." Per-show opt-out and a watched-% threshold setting are also not
-  yet exposed (the 80%/-2min rule is fixed).
+  walking away for 2 minutes and coming back still counts as "watched." Any
+  actual runtime-aware timing, per-show opt-out, and a configurable delay are
+  also not yet exposed (`CONFIRM_AFTER` is a fixed constant).
 
 **6b — detect any player.** *(built 2026-09-13, acceptance owed)* A background
 monitor reads the foreground media player's window title, parses it with the
