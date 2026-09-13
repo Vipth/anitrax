@@ -94,12 +94,11 @@ fn show_playback_popup(
         &label,
         tauri::WebviewUrl::App("/playback-prompt".into()),
     )
-    .title("AniTrax")
+    .title("Finished an episode?")
     .inner_size(WIN_W, WIN_H)
     .position(x, y)
     .decorations(false)
     .resizable(false)
-    .skip_taskbar(true)
     .focused(true)
     .initialization_script(&init_script)
     .build();
