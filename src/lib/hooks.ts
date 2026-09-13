@@ -253,6 +253,7 @@ export function useBackendEvents() {
       listen("entries-updated", () => {
         qc.invalidateQueries({ queryKey: qk.library() });
         qc.invalidateQueries({ queryKey: qk.stats });
+        qc.invalidateQueries({ queryKey: qk.lastSync() });
       }),
       listen("auth-changed", () => {
         qc.invalidateQueries({ queryKey: qk.settings });

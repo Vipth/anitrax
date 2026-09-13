@@ -142,11 +142,26 @@ pub fn run() {
                             let h = app.clone();
                             let s = tray_state.clone();
                             tauri::async_runtime::spawn(async move {
+                                use tauri_plugin_notification::NotificationExt;
                                 match sync::full_sync(&s, None).await {
-                                    Ok(_) => {
+                                    Ok(report) => {
                                         let _ = h.emit("entries-updated", ());
+                                        let _ = h
+                                            .notification()
+                                            .builder()
+                                            .title("AniTrax")
+                                            .body(format!("Synced — {} entries", report.entries))
+                                            .show();
                                     }
-                                    Err(e) => tracing::warn!(?e, "tray sync error"),
+                                    Err(e) => {
+                                        tracing::warn!(?e, "tray sync error");
+                                        let _ = h
+                                            .notification()
+                                            .builder()
+                                            .title("Sync failed")
+                                            .body(e.to_string())
+                                            .show();
+                                    }
                                 }
                             });
                         }
