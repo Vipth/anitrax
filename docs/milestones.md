@@ -171,7 +171,7 @@ Reuses the push pipeline.
   a session only when the episode is genuinely `progress + 1` — never a
   rewatch or a batch jump-ahead — via `sync::prepare_watch_session`, which also
   reads the cached episode `duration` to size the threshold: the earlier of
-  ~80% of the runtime or (runtime − 3 min), floored at 60s, defaulting to a
+  ~80% of the runtime or (runtime − 2 min), floored at 60s, defaulting to a
   20-minute episode when duration is unknown.
 - ✅ A background poll (15s) checks for sessions past their threshold. Confirm
   mode fires a `playback-confirm` event (an actionable "Bump progress" toast,
@@ -198,7 +198,7 @@ Reuses the push pipeline.
   detection) and mpv IPC — this heuristic is wall-clock-since-Play only, so
   walking away mid-episode and coming back past the threshold still counts as
   "watched." Per-show opt-out and a watched-% threshold setting are also not
-  yet exposed (the 80%/-3min rule is fixed).
+  yet exposed (the 80%/-2min rule is fixed).
 
 **6b — detect any player.** *(built 2026-09-13, acceptance owed)* A background
 monitor reads the foreground media player's window title, parses it with the

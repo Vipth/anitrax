@@ -21,6 +21,11 @@ use crate::tracker::model::ServiceKind;
 /// linger forever or fire a stale bump on wake.
 const MAX_SESSION_AGE: Duration = Duration::from_secs(6 * 3600);
 
+/// The other half of the threshold rule: "close enough to the end" means
+/// within this many minutes of the runtime, whichever this or 80% comes
+/// first (see `WatchSession::new`).
+const NEAR_END_MARGIN: Duration = Duration::from_secs(2 * 60);
+
 #[derive(Debug, Clone)]
 pub struct WatchSession {
     pub service: ServiceKind,
@@ -46,8 +51,8 @@ impl WatchSession {
     ) -> Self {
         let duration_secs = duration_minutes.filter(|m| *m > 0).unwrap_or(20) as u64 * 60;
         let eighty_pct = duration_secs * 80 / 100;
-        let minus_three_min = duration_secs.saturating_sub(180);
-        let threshold = Duration::from_secs(eighty_pct.min(minus_three_min).max(60));
+        let near_end = duration_secs.saturating_sub(NEAR_END_MARGIN.as_secs());
+        let threshold = Duration::from_secs(eighty_pct.min(near_end).max(60));
         Self {
             service,
             media_id,
@@ -161,11 +166,11 @@ mod tests {
     }
 
     #[test]
-    fn threshold_is_the_earlier_of_80pct_or_minus_3min() {
-        // 24 min: 80% = 19.2min, dur-3min = 21min -> 80% wins.
+    fn threshold_is_the_earlier_of_80pct_or_minus_2min() {
+        // 24 min: 80% = 19.2min, dur-2min = 22min -> 80% wins.
         assert_eq!(session(Some(24)).threshold, Duration::from_secs(1152));
-        // 5 min: 80% = 4min, dur-3min = 2min -> dur-3min wins.
-        assert_eq!(session(Some(5)).threshold, Duration::from_secs(120));
+        // 5 min: 80% = 4min, dur-2min = 3min -> dur-2min wins.
+        assert_eq!(session(Some(5)).threshold, Duration::from_secs(180));
         // Missing duration falls back to 20 minutes, same rule.
         assert_eq!(session(None).threshold, Duration::from_secs(960));
         // Pathologically short duration floors at 60s, never negative/zero.
