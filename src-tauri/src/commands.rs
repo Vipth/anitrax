@@ -25,6 +25,8 @@ pub struct AppSettings {
     pub close_to_tray: bool,
     pub start_on_login: bool,
     pub start_minimized: bool,
+    pub playback_enabled: bool,
+    pub playback_mode: String,
 }
 
 #[tauri::command]
@@ -48,6 +50,12 @@ pub async fn get_settings(
         start_on_login,
         start_minimized: repo::get_bool_setting(&state.db, sync::START_MINIMIZED_KEY, false)
             .await?,
+        playback_enabled: repo::get_bool_setting(&state.db, sync::PLAYBACK_ENABLED_KEY, true)
+            .await?,
+        playback_mode: repo::get_setting(&state.db, sync::PLAYBACK_MODE_KEY)
+            .await?
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_else(|| "confirm".into()),
     })
 }
 
@@ -82,6 +90,29 @@ pub async fn set_start_on_login(
 #[tauri::command]
 pub async fn set_start_minimized(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
     repo::set_bool_setting(&state.db, sync::START_MINIMIZED_KEY, enabled).await
+}
+
+/// M6a — playback detection.
+#[tauri::command]
+pub async fn set_playback_enabled(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::PLAYBACK_ENABLED_KEY, enabled).await
+}
+
+#[tauri::command]
+pub async fn set_playback_mode(state: State<'_, AppState>, mode: String) -> AppResult<()> {
+    let mode = if mode == "silent" { "silent" } else { "confirm" };
+    repo::set_setting(
+        &state.db,
+        sync::PLAYBACK_MODE_KEY,
+        &serde_json::Value::String(mode.into()),
+    )
+    .await
+}
+
+/// Episodes currently being tracked for auto-progress ("Now watching").
+#[tauri::command]
+pub fn now_watching(state: State<'_, AppState>) -> Vec<crate::playback::WatchSessionView> {
+    state.playback.list()
 }
 
 #[tauri::command]
@@ -302,7 +333,16 @@ pub async fn play_episode(
     let path = sync::episode_file_path(&state, service.as_deref(), media_id, episode).await?;
     app.opener()
         .open_path(path, None::<&str>)
-        .map_err(|e| crate::error::AppError::other(format!("Couldn't open the file: {e}")))
+        .map_err(|e| crate::error::AppError::other(format!("Couldn't open the file: {e}")))?;
+
+    // M6a: track this episode for auto-progress detection. Best-effort — a
+    // failure here shouldn't stop the file from having opened.
+    match sync::prepare_watch_session(&state, service.as_deref(), media_id, episode).await {
+        Ok(Some(session)) => state.playback.start(session),
+        Ok(None) => {}
+        Err(e) => tracing::warn!(?e, "couldn't prepare playback tracking"),
+    }
+    Ok(())
 }
 
 #[tauri::command]

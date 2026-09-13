@@ -51,4 +51,5 @@ export const qk = {
   rssHistory: ["rssHistory"] as const,
   qbConfig: ["qbConfig"] as const,
   rssPollEnabled: ["rssPollEnabled"] as const,
+  nowWatching: ["nowWatching"] as const,
 };

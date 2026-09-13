@@ -11,6 +11,7 @@ import type {
   Media,
   MediaListEntry,
   OwnedMedia,
+  PlaybackMode,
   QbConfig,
   RssCheckReport,
   RssFeed,
@@ -21,6 +22,7 @@ import type {
   ServiceKind,
   StatsData,
   SyncReport,
+  WatchSessionView,
 } from "./types";
 
 /** Typed wrappers around every Tauri command. Nothing else calls `invoke`. */
@@ -41,6 +43,14 @@ export const api = {
 
   setStartMinimized: (enabled: boolean) =>
     invoke<void>("set_start_minimized", { enabled }),
+
+  setPlaybackEnabled: (enabled: boolean) =>
+    invoke<void>("set_playback_enabled", { enabled }),
+
+  setPlaybackMode: (mode: PlaybackMode) =>
+    invoke<void>("set_playback_mode", { mode }),
+
+  nowWatching: () => invoke<WatchSessionView[]>("now_watching"),
 
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
 

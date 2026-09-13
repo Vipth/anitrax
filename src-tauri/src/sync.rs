@@ -101,6 +101,13 @@ pub const SYNC_ON_STARTUP_KEY: &str = "sync_on_startup";
 pub const CLOSE_TO_TRAY_KEY: &str = "close_to_tray";
 pub const START_ON_LOGIN_KEY: &str = "start_on_login";
 pub const START_MINIMIZED_KEY: &str = "start_minimized";
+/// M6a — playback detection. Confirm-by-default (a dismissible toast +
+/// notification); "silent" auto-bumps with no prompt.
+pub const PLAYBACK_ENABLED_KEY: &str = "playback_enabled";
+pub const PLAYBACK_MODE_KEY: &str = "playback_mode";
+/// How often the playback tracker is checked for episodes that have crossed
+/// their "probably watched" threshold.
+pub const PLAYBACK_POLL_EVERY: Duration = Duration::from_secs(15);
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".
@@ -184,6 +191,13 @@ pub async fn edit_entry(
     let media = ensure_media(state, svc, patch.media_id).await?;
     let entry = repo::apply_local_patch(&state.db, svc, &media, &patch).await?;
     state.push.nudge();
+    // Any progress change (manual or auto-bumped) retires tracked playback
+    // sessions at or below the new progress, so they don't fire a stale prompt.
+    if let Some(progress) = patch.progress {
+        state
+            .playback
+            .stop_up_to(svc, patch.media_id, progress as i64);
+    }
     Ok(entry)
 }
 
@@ -363,6 +377,65 @@ pub async fn library_files(state: &AppState) -> AppResult<Vec<LibraryFile>> {
 
 pub async fn owned_media(state: &AppState) -> AppResult<Vec<OwnedMedia>> {
     repo::owned_media(&state.db).await
+}
+
+/// If playback detection is on and `episode` is genuinely the next unwatched
+/// one, build the watch session for it. Never tracks a rewatch or a batch
+/// jump-ahead — only ever `progress + 1`, matching what the Play button
+/// itself is allowed to open.
+pub async fn prepare_watch_session(
+    state: &AppState,
+    service: Option<&str>,
+    media_id: i64,
+    episode: i64,
+) -> AppResult<Option<crate::playback::WatchSession>> {
+    if !repo::get_bool_setting(&state.db, PLAYBACK_ENABLED_KEY, true).await? {
+        return Ok(None);
+    }
+    let svc = parse_service(service);
+    let Some(entry) = repo::get_entry(&state.db, svc, media_id).await? else {
+        return Ok(None);
+    };
+    if i64::from(entry.progress) + 1 != episode {
+        return Ok(None);
+    }
+    Ok(Some(crate::playback::WatchSession::new(
+        svc,
+        media_id,
+        episode,
+        entry.media.title.preferred(),
+        entry.media.episodes.map(i64::from),
+        entry.media.duration,
+    )))
+}
+
+/// Apply a playback-detected bump: sets progress to `episode`, and — matching
+/// the manual +1 button's own logic — completes the show if that was the last
+/// episode and it was still `Current`.
+pub async fn bump_from_playback(
+    state: &AppState,
+    service: &str,
+    media_id: i64,
+    episode: i64,
+) -> AppResult<MediaListEntry> {
+    let svc = parse_service(Some(service));
+    let entry = repo::get_entry(&state.db, svc, media_id)
+        .await?
+        .ok_or_else(|| AppError::other("that entry no longer exists"))?;
+    let status = if entry.media.episodes == Some(episode as i32) && entry.status == ListStatus::Current
+    {
+        Some(ListStatus::Completed)
+    } else {
+        None
+    };
+    let patch = EntryPatch {
+        media_id,
+        remote_id: entry.remote_id,
+        progress: Some(episode as i32),
+        status,
+        ..Default::default()
+    };
+    edit_entry(state, Some(service), patch).await
 }
 
 /// Absolute path of the local file for one episode. Errors if it isn't on disk.

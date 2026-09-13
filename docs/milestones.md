@@ -159,11 +159,46 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 Reversing the original "no auto-detection" call (2026-09-09) — this is what
 makes AniTrax a full Taiga replacement. Built in phases, each useful on its own:
 
-**6a — detect what AniTrax launched.** When you hit *Play* we already know the
-show, episode and file. Track the player process we spawned (plus mpv's IPC
-socket when it's mpv) and, once playback passes a threshold (~80% or the last
-few minutes), offer to bump progress — a toast by default, silent if you opt in.
-Zero window-scraping. Reuses the push pipeline.
+**6a — detect what AniTrax launched.** *(built 2026-09-13, acceptance owed)*
+When you hit *Play* we already know the show, episode and file. Track the
+player process we spawned (plus mpv's IPC socket when it's mpv) and, once
+playback passes a threshold (~80% or the last few minutes), offer to bump
+progress — a toast by default, silent if you opt in. Zero window-scraping.
+Reuses the push pipeline.
+
+- ✅ `src-tauri/src/playback/` — a `PlaybackTracker` on `AppState` (in-memory,
+  not persisted) keyed by (service, media, episode). `play_episode` registers
+  a session only when the episode is genuinely `progress + 1` — never a
+  rewatch or a batch jump-ahead — via `sync::prepare_watch_session`, which also
+  reads the cached episode `duration` to size the threshold: the earlier of
+  ~80% of the runtime or (runtime − 3 min), floored at 60s, defaulting to a
+  20-minute episode when duration is unknown.
+- ✅ A background poll (15s) checks for sessions past their threshold. Confirm
+  mode fires a `playback-confirm` event (an actionable "Bump progress" toast,
+  new to the toast store) *and* a desktop notification, so it's not missed
+  while minimised to tray. Silent mode calls `sync::bump_from_playback`
+  directly — same "complete the show if this was the last episode" logic as
+  the manual +1 button — and notifies quietly.
+- ✅ Any progress edit (manual, silent-bumped, or otherwise) retires tracked
+  sessions at or below the new progress, so a stale timer can't fire after
+  you've already moved past it.
+- ✅ Settings → **Playback detection**: master toggle (default on) + Confirm /
+  Silent mode, shown only once the deps merge.
+- ✅ "Now watching" strip (root layout, above the page content) lists tracked
+  episodes, links to media detail. Polls the in-memory tracker every 15s — no
+  network cost, nothing persisted.
+- ✅ Never touches AniList beyond the existing debounced progress push.
+- ✅ 5 unit tests (threshold math, one-shot tick reporting, stale-session
+  pruning, `stop_up_to` range clearing).
+- ⏳ **Acceptance owed** — needs a real watch: confirm the toast/notification
+  fires around the expected time for an on-disk episode, "Bump progress"
+  applies correctly (including auto-completing a finale), and silent mode
+  bumps with no prompt.
+- Explicitly **not** in this pass: real player-process tracking (exit
+  detection) and mpv IPC — this heuristic is wall-clock-since-Play only, so
+  walking away mid-episode and coming back past the threshold still counts as
+  "watched." Per-show opt-out and a watched-% threshold setting are also not
+  yet exposed (the 80%/-3min rule is fixed).
 
 **6b — detect any player.** A background monitor reads the foreground media
 player's window title (Windows: `windows` crate; macOS: Accessibility; Linux:
@@ -171,12 +206,9 @@ MPRIS/X11), parses it with the anitomy code from M3, matches to `media_cache`
 with the M3 matcher. Player list + per-player enable in Settings.
 
 **6c — richer player hooks.** mpv JSON IPC, VLC HTTP interface, MPC-HC/BE web
-interface — exact position/duration/path instead of guessing from a title.
+interface — exact position/duration/path instead of guessing from a title,
+and true "watched" detection independent of wall-clock heuristics.
 
-- Settings: master toggle, per-show opt-out, "confirm vs auto" mode, watched-%
-  threshold, monitored-player list
-- A "Now watching" strip in the app while detection is active
-- Never touches AniList beyond the existing debounced progress push
 - Unit tests: window title → (show, episode); position → watched / not-yet
 
 ---

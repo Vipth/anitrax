@@ -43,6 +43,17 @@ export function Toaster() {
                   {t.description}
                 </p>
               )}
+              {t.action && (
+                <button
+                  onClick={() => {
+                    t.action!.onClick();
+                    dismiss(t.id);
+                  }}
+                  className="mt-1.5 rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
             <button
               onClick={() => dismiss(t.id)}

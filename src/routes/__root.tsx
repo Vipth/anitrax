@@ -1,17 +1,23 @@
 import { useEffect } from "react";
 import {
   createRootRoute,
+  Link,
   Outlet,
   useNavigate,
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
-import { CloudOff } from "lucide-react";
+import { CloudOff, Play } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
-import { useBackendEvents, useBudget } from "@/lib/hooks";
+import {
+  useBackendEvents,
+  useBudget,
+  useNowWatching,
+  usePlaybackEvents,
+} from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
@@ -24,6 +30,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   useBackendEvents();
+  usePlaybackEvents();
   const theme = usePrefs((s) => s.theme);
   const navigate = useNavigate();
   const helpOpen = useUi((s) => s.helpOpen);
@@ -147,6 +154,7 @@ function RootLayout() {
           <div className="absolute inset-x-0 top-0 z-50 h-0.5 animate-pulse bg-primary" />
         )}
         <OutageBanner />
+        <NowWatchingStrip />
         <Outlet />
       </main>
       <Toaster />
@@ -166,6 +174,27 @@ function OutageBanner() {
         cached library still works, and any edits you make will sync
         automatically once it&apos;s back.
       </span>
+    </div>
+  );
+}
+
+function NowWatchingStrip() {
+  const { data } = useNowWatching();
+  if (!data || data.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-6 py-2">
+      {data.map((s) => (
+        <Link
+          key={`${s.service}-${s.mediaId}-${s.episode}`}
+          to="/media/$mediaId"
+          params={{ mediaId: String(s.mediaId) }}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+        >
+          <Play className="size-3 shrink-0 fill-current text-primary" />
+          <span className="max-w-[16rem] truncate">{s.title}</span>
+          <span>· Ep {s.episode}</span>
+        </Link>
+      ))}
     </div>
   );
 }

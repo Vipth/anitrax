@@ -4,6 +4,7 @@ mod db;
 mod download;
 mod error;
 mod library;
+mod playback;
 mod rss;
 mod state;
 mod stats;
@@ -34,6 +35,13 @@ fn toggle_main_window(app: &AppHandle) {
             show_main_window(app);
         }
     }
+}
+
+/// A desktop notification so a playback-detection result reaches the user
+/// even while the window is hidden to the tray.
+fn notify_playback(app: &AppHandle, title: &str, body: &str) {
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app.notification().builder().title(title).body(body).show();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -112,6 +120,9 @@ pub fn run() {
             commands::set_close_to_tray,
             commands::set_start_on_login,
             commands::set_start_minimized,
+            commands::set_playback_enabled,
+            commands::set_playback_mode,
+            commands::now_watching,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -376,6 +387,63 @@ pub fn run() {
                             }
                         }
                         tokio::time::sleep(rss::scheduler::POLL_EVERY).await;
+                    }
+                });
+            }
+
+            // M6a — playback detection: check for episodes that crossed their
+            // "probably watched" threshold, then confirm-toast or silently bump.
+            {
+                let h = handle.clone();
+                let s = state.clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        tokio::time::sleep(sync::PLAYBACK_POLL_EVERY).await;
+                        let ready = s.playback.tick();
+                        if ready.is_empty() {
+                            continue;
+                        }
+                        let silent = db::repo::get_setting(&s.db, sync::PLAYBACK_MODE_KEY)
+                            .await
+                            .ok()
+                            .flatten()
+                            .and_then(|v| v.as_str().map(|m| m == "silent"))
+                            .unwrap_or(false);
+                        for item in ready {
+                            if silent {
+                                match sync::bump_from_playback(
+                                    &s,
+                                    &item.service,
+                                    item.media_id,
+                                    item.episode,
+                                )
+                                .await
+                                {
+                                    Ok(_) => {
+                                        let _ = h.emit("entries-updated", ());
+                                        notify_playback(
+                                            &h,
+                                            "AniTrax",
+                                            &format!(
+                                                "Bumped {} to episode {}",
+                                                item.title, item.episode
+                                            ),
+                                        );
+                                    }
+                                    Err(e) => tracing::warn!(?e, "playback auto-bump failed"),
+                                }
+                            } else {
+                                let _ = h.emit("playback-confirm", &item);
+                                notify_playback(
+                                    &h,
+                                    "Finished an episode?",
+                                    &format!(
+                                        "{} — episode {}. Open AniTrax to confirm.",
+                                        item.title, item.episode
+                                    ),
+                                );
+                            }
+                        }
                     }
                 });
             }

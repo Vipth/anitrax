@@ -7,7 +7,8 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./ipc";
 import { qk } from "./query";
-import type { EntryPatch, MediaListEntry } from "./types";
+import { toast } from "@/stores/toast";
+import type { EntryPatch, ListStatus, MediaListEntry, WatchSessionView } from "./types";
 
 export function useLibrary() {
   return useQuery({
@@ -274,4 +275,61 @@ export function useBackendEvents() {
       uns.forEach((p) => p.then((f) => f()));
     };
   }, [qc]);
+}
+
+// --------------------------------------------------------------------------- //
+// M6a — playback detection
+// --------------------------------------------------------------------------- //
+
+/** Episodes currently tracked for auto-progress — drives the "Now watching" strip. */
+export function useNowWatching() {
+  return useQuery({
+    queryKey: qk.nowWatching,
+    queryFn: () => api.nowWatching(),
+    refetchInterval: 15_000,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Confirm-mode prompts from the backend: a tracked episode crossed its
+ * "probably watched" threshold. Shows an actionable toast to bump progress —
+ * mirrors the same completion logic as the manual +1 button and the backend's
+ * own silent-mode bump (`sync::bump_from_playback`).
+ */
+export function usePlaybackEvents() {
+  const qc = useQueryClient();
+  const edit = useEditEntry();
+  useEffect(() => {
+    const un = listen<WatchSessionView>("playback-confirm", (e) => {
+      const ev = e.payload;
+      const bump = () => {
+        const entries = qc.getQueryData<MediaListEntry[]>(qk.library());
+        const entry = entries?.find((x) => x.media.id.id === ev.mediaId);
+        const status: ListStatus | undefined =
+          ev.episodesTotal === ev.episode && entry?.status === "CURRENT"
+            ? "COMPLETED"
+            : undefined;
+        edit.mutate(
+          {
+            mediaId: ev.mediaId,
+            remoteId: entry?.remoteId,
+            progress: ev.episode,
+            status,
+          },
+          {
+            onSuccess: () =>
+              toast.success("Progress updated", `${ev.title} — episode ${ev.episode}`),
+          },
+        );
+      };
+      toast.prompt(`Finished episode ${ev.episode}?`, ev.title, {
+        label: "Bump progress",
+        onClick: bump,
+      });
+    });
+    return () => {
+      un.then((f) => f());
+    };
+  }, [qc, edit]);
 }

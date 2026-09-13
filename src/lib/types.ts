@@ -104,6 +104,8 @@ export interface Account {
   connectedAt: string;
 }
 
+export type PlaybackMode = "confirm" | "silent";
+
 export interface AppSettings {
   anilistClientId: string | null;
   anilistRedirect: string;
@@ -112,6 +114,19 @@ export interface AppSettings {
   closeToTray: boolean;
   startOnLogin: boolean;
   startMinimized: boolean;
+  playbackEnabled: boolean;
+  playbackMode: PlaybackMode;
+}
+
+// M6a — playback detection (mirrors `src-tauri/src/playback/mod.rs`).
+export interface WatchSessionView {
+  service: ServiceKind;
+  mediaId: number;
+  episode: number;
+  title: string;
+  episodesTotal: number | null;
+  elapsedSecs: number;
+  thresholdSecs: number;
 }
 
 export interface SyncReport {

@@ -51,7 +51,6 @@ pub struct MediaTitle {
 }
 
 impl MediaTitle {
-    #[allow(dead_code)] // used by Rust-side ordering helpers in later milestones
     pub fn preferred(&self) -> String {
         self.english
             .clone()

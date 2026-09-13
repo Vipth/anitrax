@@ -8,6 +8,7 @@ use tokio::sync::{mpsc, Notify};
 use crate::db::{self, repo, Db};
 use crate::error::AppResult;
 use crate::library::watcher::LibraryWatcher;
+use crate::playback::PlaybackTracker;
 use crate::tracker::anilist::{AniList, AniListGateway};
 
 /// Shared application state, cloned into every command and background task.
@@ -27,6 +28,8 @@ pub struct AppState {
     /// window close-request handler doesn't need to hit the DB. Kept in sync
     /// by `set_close_to_tray`.
     pub close_to_tray: Arc<AtomicBool>,
+    /// M6a — episodes opened via Play, tracked for auto-progress detection.
+    pub playback: PlaybackTracker,
 }
 
 impl AppState {
@@ -58,6 +61,7 @@ impl AppState {
             http,
             rss_lock: Arc::new(tokio::sync::Mutex::new(())),
             close_to_tray: Arc::new(AtomicBool::new(close_to_tray)),
+            playback: PlaybackTracker::new(),
         })
     }
 

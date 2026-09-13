@@ -13,7 +13,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { Button } from "@/components/ui/button";
-import { Card, Input } from "@/components/ui/primitives";
+import { Card, Input, Segmented } from "@/components/ui/primitives";
 import { Switch } from "@/components/ui/switch";
 import { ThemeSelect } from "@/components/layout/ThemeSelect";
 import { RequestBudgetMeter } from "@/components/RequestBudgetMeter";
@@ -25,7 +25,12 @@ import {
 } from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
 import { toast } from "@/stores/toast";
-import { errorMessage, type AppSettings, type QbConfig } from "@/lib/types";
+import {
+  errorMessage,
+  type AppSettings,
+  type PlaybackMode,
+  type QbConfig,
+} from "@/lib/types";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -85,6 +90,10 @@ function SettingsPage() {
 
       <Section title="Startup & window">
         <StartupSettings />
+      </Section>
+
+      <Section title="Playback detection">
+        <PlaybackSettings />
       </Section>
 
       <Section title="Watched folders">
@@ -514,6 +523,77 @@ function QbittorrentSettings() {
           <span className="text-xs text-success">Connected · v{tested}</span>
         )}
       </div>
+    </div>
+  );
+}
+
+function PlaybackSettings() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const enabled = settings?.playbackEnabled ?? true;
+  const mode = settings?.playbackMode ?? "confirm";
+
+  const toggle = useMutation({
+    mutationFn: (v: boolean) => api.setPlaybackEnabled(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, playbackEnabled: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  const setMode = useMutation({
+    mutationFn: (v: PlaybackMode) => api.setPlaybackMode(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, playbackMode: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <SettingRow
+        label="Detect finished episodes"
+        hint="When you hit Play, AniTrax watches roughly how long you've had the file open. Once that's close to the episode's runtime, it offers to bump progress. No window-scraping, no player integration yet — just the episode you launched."
+      >
+        <Switch
+          checked={enabled}
+          onCheckedChange={(v) => toggle.mutate(v)}
+          aria-label="Detect finished episodes"
+        />
+      </SettingRow>
+      {enabled && (
+        <SettingRow
+          label="When detected"
+          hint={
+            mode === "silent"
+              ? "Bumps progress automatically, with just a quiet notification."
+              : "Asks first — a dismissible toast with a Bump progress button."
+          }
+        >
+          <Segmented
+            value={mode}
+            onChange={(v) => setMode.mutate(v)}
+            options={[
+              { value: "confirm", label: "Confirm" },
+              { value: "silent", label: "Silent" },
+            ]}
+          />
+        </SettingRow>
+      )}
     </div>
   );
 }
