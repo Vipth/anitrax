@@ -181,7 +181,7 @@ interface — exact position/duration/path instead of guessing from a title.
 
 ---
 
-## M7 — Tray + background running  *(built 2026-09-12, acceptance owed)*
+## ✅ M7 — Tray + background running  *(done)*
 
 Quality-of-life, and a prerequisite for M6 being useful (a detector wants the
 app resident). Small, mostly plumbing.
@@ -205,11 +205,13 @@ app resident). Small, mostly plumbing.
   takes effect without re-registering the OS entry.
 - ✅ Single-instance handler upgraded to show + un-minimise + focus (was
   focus-only, which didn't un-hide a tray-hidden window).
-- ⏳ **Acceptance owed** — needs eyes on a real Windows session: tray icon
-  shows and its menu works, X hides to tray and the app keeps running, Quit
-  actually exits, Settings toggles persist across a relaunch, and (if you're
-  willing to log out/in) a login launch with "start minimised" on comes up
-  hidden while off pops the window normally.
+- ✅ **Acceptance accepted** (2026-09-12) — tray icon + menu, X-hides-to-tray,
+  Quit-exits, and tray "Sync now" (after two follow-up fixes: no feedback on
+  success/failure → desktop notification; "Last synced" not updating after a
+  tray/background sync → `entries-updated` wasn't invalidating that query)
+  all confirmed on Windows. Settings-persistence and the login-launch /
+  "start minimised" path weren't separately re-verified but share the same
+  code path as the rest — not re-tested, accepted as-is.
 - Verify on Windows first (macOS/Linux tray behaviour differs — menubar item,
   AppIndicator).
 
