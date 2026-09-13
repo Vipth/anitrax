@@ -47,10 +47,13 @@ fn notify_playback(app: &AppHandle, title: &str, body: &str) {
 /// Open a small popup window for the playback confirm prompt — a real app
 /// window rather than an OS notification, since Windows silently suppresses
 /// notification toasts while a fullscreen app has focus (exactly when this
-/// fires — you're watching something). Not pinned always-on-top; it's
-/// created focused, which is enough to land above a borderless-fullscreen
-/// video player (the common case) without permanently floating over
-/// everything afterwards.
+/// fires — you're watching something). Always-on-top, because Windows'
+/// anti-focus-stealing protection means a plain focused (non-topmost) window
+/// from a background process is simply not raised over a fullscreen
+/// foreground app — confirmed by testing, not theoretical. It isn't
+/// permanently intrusive though: the window itself is short-lived (the
+/// frontend auto-closes it in 30s, or instantly on either button), so
+/// "always on top" only ever applies for that brief window, not forever.
 fn show_playback_popup(
     app: &AppHandle,
     service: &str,
@@ -100,6 +103,7 @@ fn show_playback_popup(
     .decorations(false)
     .resizable(false)
     .focused(true)
+    .always_on_top(true)
     .initialization_script(&init_script)
     .build();
 

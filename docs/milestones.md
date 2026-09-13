@@ -192,7 +192,15 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
   Its own capability entry (`capabilities/default.json`, `windows: ["main",
   "playback-*"]`) — window-scoped permissions are per-label in Tauri 2, so a
   new window label needs an explicit grant or every command call from it is
-  silently rejected.
+  silently rejected. **Always-on-top is load-bearing, not optional** — tried
+  dropping it (focused-but-not-topmost) on request and confirmed via testing
+  that Windows' anti-focus-stealing protection simply never raises a
+  background process's window over a fullscreen foreground app; the popup
+  built and the log showed it firing, but nothing appeared. Kept acceptable
+  by being short-lived (30s auto-dismiss / instant on either button) rather
+  than a persistent floating window. Also learned along the way: no
+  `skip_taskbar` — pair that with non-topmost and a window that loses focus
+  becomes unreachable (no taskbar entry to reclaim it).
 - ✅ Any progress edit (manual, silent-bumped, or otherwise) retires tracked
   sessions at or below the new progress, so a stale timer can't fire after
   you've already moved past it.
