@@ -174,7 +174,13 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
   (Originally sized off ~80% of the cached duration; changed to a flat delay
   2026-09-13 per explicit request, trading "waits until the episode's
   actually almost over" for "fires quickly and predictably regardless of
-  length" — revisit if that trade stops making sense.)
+  length" — revisit if that trade stops making sense.) A session that fires
+  isn't cleared — it's **re-armed at `RENOTIFY_AFTER` (12 minutes)** instead
+  of the initial 2, so an unresolved prompt (dismissed, ignored, or — the
+  case that actually surfaced this — M6b re-detecting the same still-playing
+  episode every poll) comes back on a slower, less naggy cadence rather than
+  immediately. Only a progress edit or `MAX_SESSION_AGE` (6h) actually clears
+  a session.
 - ✅ A background poll (15s) checks for sessions past their threshold. Silent
   mode calls `sync::bump_from_playback` directly — same "complete the show if
   this was the last episode" logic as the manual +1 button — and notifies

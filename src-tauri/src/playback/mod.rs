@@ -26,6 +26,13 @@ const MAX_SESSION_AGE: Duration = Duration::from_secs(6 * 3600);
 /// actual runtime.
 pub const CONFIRM_AFTER: Duration = Duration::from_secs(2 * 60);
 
+/// If a fired session is never resolved (no progress edit — the prompt was
+/// dismissed, ignored, or auto-closed), ask again after this much longer
+/// instead of nagging on the same short interval. Matters most for M6b: a
+/// still-playing episode gets re-detected every poll, and without this a
+/// dismissed prompt would just come right back in another `CONFIRM_AFTER`.
+pub const RENOTIFY_AFTER: Duration = Duration::from_secs(12 * 60);
+
 #[derive(Debug, Clone)]
 pub struct WatchSession {
     pub service: ServiceKind,
@@ -34,9 +41,9 @@ pub struct WatchSession {
     pub title: String,
     pub episodes_total: Option<i64>,
     pub started_at: Instant,
-    /// Elapsed time at which we consider the episode "probably watched".
+    /// Elapsed time at which we consider the episode "probably watched" (or,
+    /// after the first fire, "worth asking about again").
     pub threshold: Duration,
-    notified: bool,
 }
 
 impl WatchSession {
@@ -55,7 +62,6 @@ impl WatchSession {
             episodes_total,
             started_at: Instant::now(),
             threshold: CONFIRM_AFTER,
-            notified: false,
         }
     }
 }
@@ -129,17 +135,21 @@ impl PlaybackTracker {
         self.sessions.lock().unwrap().values().map(view_of).collect()
     }
 
-    /// Sessions that just crossed their threshold since the last tick (each is
-    /// returned at most once), plus housekeeping: prune stale sessions and drop
-    /// ones that were already reported.
+    /// Sessions that just crossed their threshold since the last tick, plus
+    /// housekeeping: prune stale sessions. A session that fires is **not**
+    /// removed — it's re-armed with `RENOTIFY_AFTER` so an unresolved prompt
+    /// (dismissed, ignored, or just re-detected by M6b while still playing)
+    /// comes back on a longer, less naggy interval instead of immediately.
+    /// Only a progress edit (`stop_up_to`) or old age actually clears one.
     pub fn tick(&self) -> Vec<WatchSessionView> {
         let mut sessions = self.sessions.lock().unwrap();
-        sessions.retain(|_, s| !s.notified && s.started_at.elapsed() < MAX_SESSION_AGE);
+        sessions.retain(|_, s| s.started_at.elapsed() < MAX_SESSION_AGE);
         let mut ready = Vec::new();
         for s in sessions.values_mut() {
             if s.started_at.elapsed() >= s.threshold {
-                s.notified = true;
                 ready.push(view_of(s));
+                s.started_at = Instant::now();
+                s.threshold = RENOTIFY_AFTER;
             }
         }
         ready
@@ -165,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn tick_reports_a_crossed_session_exactly_once() {
+    fn firing_re_arms_with_the_longer_renotify_interval_instead_of_clearing() {
         let tracker = PlaybackTracker::new();
         tracker.start(backdated(session(), CONFIRM_AFTER + Duration::from_secs(1)));
 
@@ -173,9 +183,31 @@ mod tests {
         assert_eq!(first.len(), 1);
         assert_eq!(first[0].episode, 5);
 
-        // Already reported — gone on the next tick, not re-sent.
+        // Not resolved — still tracked, but on the longer follow-up interval,
+        // not immediately re-sent.
         assert!(tracker.tick().is_empty());
-        assert!(tracker.list().is_empty());
+        let remaining = tracker.list();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].threshold_secs, RENOTIFY_AFTER.as_secs());
+    }
+
+    #[test]
+    fn unresolved_session_fires_again_after_the_renotify_interval() {
+        let tracker = PlaybackTracker::new();
+        tracker.start(backdated(session(), CONFIRM_AFTER + Duration::from_secs(1)));
+        assert_eq!(tracker.tick().len(), 1);
+
+        // Still short of the 12-minute follow-up — quiet.
+        assert!(tracker.tick().is_empty());
+
+        // Fast-forward past it: fires again.
+        {
+            let mut sessions = tracker.sessions.lock().unwrap();
+            for s in sessions.values_mut() {
+                s.started_at = Instant::now() - RENOTIFY_AFTER - Duration::from_secs(1);
+            }
+        }
+        assert_eq!(tracker.tick().len(), 1);
     }
 
     #[test]
