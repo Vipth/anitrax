@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { HardDrive, Pencil, Star, Tv } from "lucide-react";
+import { HardDrive, Pencil, Star, Timer, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaListEntry } from "@/lib/types";
 import { FORMAT_LABEL, countdown, mediaTitle, scoreToTen } from "@/lib/format";
@@ -226,6 +226,13 @@ export function MediaListRow({ entry, selected, owned, onEdit }: CardProps) {
             variant="plain"
             className="px-1 py-0"
           />
+          {entry.media.nextAiring && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-warning">
+              <Timer className="size-3" />
+              Ep {entry.media.nextAiring.episode} in{" "}
+              {countdown(entry.media.nextAiring.airingAt)}
+            </span>
+          )}
         </div>
       </div>
 
