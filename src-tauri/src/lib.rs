@@ -37,13 +37,6 @@ fn toggle_main_window(app: &AppHandle) {
     }
 }
 
-/// A desktop notification so a playback-detection result reaches the user
-/// even while the window is hidden to the tray.
-fn notify_playback(app: &AppHandle, title: &str, body: &str) {
-    use tauri_plugin_notification::NotificationExt;
-    let _ = app.notification().builder().title(title).body(body).show();
-}
-
 /// Open a small popup window for the playback confirm prompt — a real app
 /// window rather than an OS notification, since Windows silently suppresses
 /// notification toasts while a fullscreen app has focus (exactly when this
@@ -493,13 +486,19 @@ pub fn run() {
                                     Ok(_) => {
                                         tracing::info!(title = %item.title, episode = item.episode, "playback bumped (silent mode)");
                                         let _ = h.emit("entries-updated", ());
-                                        notify_playback(
-                                            &h,
-                                            "AniTrax",
-                                            &format!(
-                                                "Bumped {} to episode {}",
-                                                item.title, item.episode
-                                            ),
+                                        // An in-app toast, not an OS notification — the
+                                        // Windows toast sound isn't something we can
+                                        // reliably silence for an unpackaged app (the
+                                        // `<audio silent="true">` toast element is
+                                        // honoured inconsistently without a properly
+                                        // registered AUMID), and "silent mode" should
+                                        // mean silent.
+                                        let _ = h.emit(
+                                            "playback-bumped",
+                                            serde_json::json!({
+                                                "title": item.title,
+                                                "episode": item.episode,
+                                            }),
                                         );
                                     }
                                     Err(e) => tracing::warn!(?e, "playback auto-bump failed"),

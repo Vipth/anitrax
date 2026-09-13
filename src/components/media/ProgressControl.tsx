@@ -16,19 +16,16 @@ export function ProgressControl({
   const total = entry.media.episodes;
   const atMax = total != null && entry.progress >= total;
 
+  // Whether this also completes the show (reaching the final episode while
+  // Watching) is decided backend-side in `edit_entry`, the single place every
+  // progress-changing path agrees on that rule.
   const set = (next: number) => {
     if (next < 0) return;
-    const patch = {
+    edit.mutate({
       mediaId: entry.media.id.id,
       remoteId: entry.remoteId,
       progress: next,
-      // finishing the last episode completes the show
-      status:
-        total != null && next >= total && entry.status === "CURRENT"
-          ? ("COMPLETED" as const)
-          : undefined,
-    };
-    edit.mutate(patch);
+    });
   };
 
   return (

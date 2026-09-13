@@ -7,6 +7,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./ipc";
 import { qk } from "./query";
+import { toast } from "@/stores/toast";
 import type { EntryPatch, MediaListEntry } from "./types";
 
 export function useLibrary() {
@@ -268,6 +269,11 @@ export function useBackendEvents() {
       listen("rss-updated", () => {
         qc.invalidateQueries({ queryKey: qk.rssHistory });
         qc.invalidateQueries({ queryKey: qk.rssFeeds });
+      }),
+      // Silent-mode playback bump — an in-app toast rather than an OS
+      // notification, which comes with a sound we can't reliably suppress.
+      listen<{ title: string; episode: number }>("playback-bumped", (e) => {
+        toast.success(`Bumped to episode ${e.payload.episode}`, e.payload.title);
       }),
     ];
     return () => {

@@ -192,10 +192,30 @@ pub async fn get_media(state: &AppState, service: Option<&str>, media_id: i64) -
 pub async fn edit_entry(
     state: &AppState,
     service: Option<&str>,
-    patch: EntryPatch,
+    mut patch: EntryPatch,
 ) -> AppResult<MediaListEntry> {
     let svc = parse_service(service);
     let media = ensure_media(state, svc, patch.media_id).await?;
+
+    // Reaching the final episode while Watching completes the show — the one
+    // rule every progress-changing path (the +1 button, a playback bump, or a
+    // manual edit that leaves status untouched) should agree on, so it lives
+    // here instead of being recomputed by each caller.
+    if let Some(progress) = patch.progress {
+        if media.episodes == Some(progress) {
+            let effective_status = match patch.status {
+                Some(s) => s,
+                None => repo::get_entry(&state.db, svc, patch.media_id)
+                    .await?
+                    .map(|e| e.status)
+                    .unwrap_or(ListStatus::Planning),
+            };
+            if effective_status == ListStatus::Current {
+                patch.status = Some(ListStatus::Completed);
+            }
+        }
+    }
+
     let entry = repo::apply_local_patch(&state.db, svc, &media, &patch).await?;
     state.push.nudge();
     // Any progress change (manual or auto-bumped) retires tracked playback
@@ -415,9 +435,8 @@ pub async fn prepare_watch_session(
     )))
 }
 
-/// Apply a playback-detected bump: sets progress to `episode`, and — matching
-/// the manual +1 button's own logic — completes the show if that was the last
-/// episode and it was still `Current`.
+/// Apply a playback-detected bump: sets progress to `episode`. `edit_entry`
+/// itself decides whether that also completes the show.
 pub async fn bump_from_playback(
     state: &AppState,
     service: &str,
@@ -428,17 +447,10 @@ pub async fn bump_from_playback(
     let entry = repo::get_entry(&state.db, svc, media_id)
         .await?
         .ok_or_else(|| AppError::other("that entry no longer exists"))?;
-    let status = if entry.media.episodes == Some(episode as i32) && entry.status == ListStatus::Current
-    {
-        Some(ListStatus::Completed)
-    } else {
-        None
-    };
     let patch = EntryPatch {
         media_id,
         remote_id: entry.remote_id,
         progress: Some(episode as i32),
-        status,
         ..Default::default()
     };
     edit_entry(state, Some(service), patch).await

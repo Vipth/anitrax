@@ -182,10 +182,16 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
   immediately. Only a progress edit or `MAX_SESSION_AGE` (6h) actually clears
   a session.
 - ✅ A background poll (15s) checks for sessions past their threshold. Silent
-  mode calls `sync::bump_from_playback` directly — same "complete the show if
-  this was the last episode" logic as the manual +1 button — and notifies
-  quietly (OS notification; fine here since you're not necessarily watching
-  right then). Confirm mode opens a **dedicated popup window**
+  mode calls `sync::bump_from_playback` directly and notifies via an **in-app
+  toast** (`playback-bumped` event → `useBackendEvents` → `toast.success`) —
+  changed 2026-09-13 from an OS notification after live testing surfaced an
+  unwanted Windows notification sound that couldn't be reliably silenced: the
+  toast schema's `<audio silent="true">` element (what `notify-rust`/
+  `tauri-plugin-notification` already emit by default when no sound is set)
+  is honoured inconsistently for an unpackaged app without a properly
+  registered AUMID. An in-app toast sidesteps the OS layer entirely — no
+  sound, ever. `notify_playback` (the old OS-notification helper) was
+  removed; nothing else used it. Confirm mode opens a **dedicated popup window**
   (`show_playback_popup` in `lib.rs`, small/always-on-top/no-decorations,
   bottom-right of the primary monitor, route `playback-prompt.tsx`) instead
   of an in-app toast or OS notification — both of those turned out unreliable
@@ -210,6 +216,14 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
 - ✅ Any progress edit (manual, silent-bumped, or otherwise) retires tracked
   sessions at or below the new progress, so a stale timer can't fire after
   you've already moved past it.
+- ✅ **Fixed 2026-09-13**: manually typing the final episode into the edit
+  dialog didn't auto-complete the show, even though clicking **+1** for that
+  same episode did — the two paths had separately duplicated "reaching the
+  final episode while Watching completes it" logic, and the edit dialog's
+  copy was simply missing. Moved the rule into `sync::edit_entry` itself (the
+  one function every progress-changing path — `+1`, the manual dialog, and
+  `bump_from_playback` — already funnels through), so it can't drift out of
+  sync again; the frontend/`bump_from_playback` copies were deleted.
 - ✅ Settings → **Playback detection**: master toggle (default on) + Confirm /
   Silent mode, shown only once the deps merge.
 - ✅ "Now watching" strip (root layout, above the page content) lists tracked
