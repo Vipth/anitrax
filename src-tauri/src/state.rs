@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Manager};
@@ -22,6 +23,10 @@ pub struct AppState {
     /// Serialises RSS feed checks so the timer and a manual "check now" can't
     /// run concurrently and double-add a torrent.
     pub rss_lock: Arc<tokio::sync::Mutex<()>>,
+    /// Mirrors the `close_to_tray` setting in memory so the (synchronous)
+    /// window close-request handler doesn't need to hit the DB. Kept in sync
+    /// by `set_close_to_tray`.
+    pub close_to_tray: Arc<AtomicBool>,
 }
 
 impl AppState {
@@ -41,6 +46,10 @@ impl AppState {
             .build()
             .unwrap_or_default();
 
+        let close_to_tray = repo::get_bool_setting(&db, crate::sync::CLOSE_TO_TRAY_KEY, true)
+            .await
+            .unwrap_or(true);
+
         Ok(Self {
             db,
             anilist,
@@ -48,11 +57,23 @@ impl AppState {
             watcher: LibraryWatcherHandle::new(),
             http,
             rss_lock: Arc::new(tokio::sync::Mutex::new(())),
+            close_to_tray: Arc::new(AtomicBool::new(close_to_tray)),
         })
     }
 
     pub fn gateway(&self) -> &AniListGateway {
         self.anilist.gateway()
+    }
+}
+
+/// Convenience wrappers over the atomics above.
+impl AppState {
+    pub fn is_close_to_tray(&self) -> bool {
+        self.close_to_tray.load(Ordering::Relaxed)
+    }
+
+    pub fn set_close_to_tray_flag(&self, v: bool) {
+        self.close_to_tray.store(v, Ordering::Relaxed);
     }
 }
 

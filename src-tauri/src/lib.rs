@@ -10,10 +10,31 @@ mod stats;
 mod sync;
 mod tracker;
 
-use tauri::{Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::AppState;
 use crate::tracker::model::ServiceKind;
+
+/// Show (un-hiding / un-minimising as needed) and focus the main window.
+fn show_main_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+/// Left-click on the tray icon: hide if visible, show+focus otherwise.
+fn toggle_main_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else {
+            drop(w);
+            show_main_window(app);
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,14 +47,20 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.set_focus();
-            }
+            show_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
+        // Always registers the login-launch command with `--minimized`; whether
+        // that actually starts hidden is decided at runtime by the
+        // `start_minimized` setting (see the show/hide logic below) — so
+        // toggling that setting takes effect without touching the OS entry.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::set_anilist_client_id,
@@ -82,6 +109,9 @@ pub fn run() {
             commands::test_qb_connection,
             commands::rss_poll_enabled,
             commands::set_rss_poll_enabled,
+            commands::set_close_to_tray,
+            commands::set_start_on_login,
+            commands::set_start_minimized,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -89,6 +119,84 @@ pub fn run() {
             let state = tauri::async_runtime::block_on(AppState::init(&handle))
                 .expect("failed to initialise app state");
             app.manage(state.clone());
+
+            // System tray: Open / Sync now / Quit, left-click toggles the window.
+            {
+                use tauri::menu::{Menu, MenuItem};
+                use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+                let open_i = MenuItem::with_id(app, "open", "Open", true, None::<&str>)?;
+                let sync_i = MenuItem::with_id(app, "sync", "Sync now", true, None::<&str>)?;
+                let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+                let tray_menu = Menu::with_items(app, &[&open_i, &sync_i, &quit_i])?;
+
+                let tray_state = state.clone();
+                TrayIconBuilder::new()
+                    .icon(tauri::include_image!("icons/32x32.png"))
+                    .tooltip("AniTrax")
+                    .menu(&tray_menu)
+                    .show_menu_on_left_click(false)
+                    .on_menu_event(move |app, event| match event.id.as_ref() {
+                        "open" => show_main_window(app),
+                        "sync" => {
+                            let h = app.clone();
+                            let s = tray_state.clone();
+                            tauri::async_runtime::spawn(async move {
+                                match sync::full_sync(&s, None).await {
+                                    Ok(_) => {
+                                        let _ = h.emit("entries-updated", ());
+                                    }
+                                    Err(e) => tracing::warn!(?e, "tray sync error"),
+                                }
+                            });
+                        }
+                        "quit" => app.exit(0),
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            toggle_main_window(tray.app_handle());
+                        }
+                    })
+                    .build(app)?;
+            }
+
+            // Close-to-tray: hide instead of quitting when the setting is on
+            // (checked in memory — `AppState.close_to_tray` — so this stays
+            // synchronous). "Quit" from the tray menu bypasses this via `exit()`.
+            if let Some(window) = app.get_webview_window("main") {
+                let close_state = state.clone();
+                let win = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        if close_state.is_close_to_tray() {
+                            api.prevent_close();
+                            let _ = win.hide();
+                        }
+                    }
+                });
+            }
+
+            // The window starts hidden (see tauri.conf.json); show it now unless
+            // this is a login-launch (`--minimized`, set by the autostart plugin
+            // above) AND the user has asked to start minimised to tray.
+            {
+                let launched_minimized = std::env::args().any(|a| a == "--minimized");
+                let start_minimized = tauri::async_runtime::block_on(db::repo::get_bool_setting(
+                    &state.db,
+                    sync::START_MINIMIZED_KEY,
+                    false,
+                ))
+                .unwrap_or(false);
+                if !(launched_minimized && start_minimized) {
+                    show_main_window(&handle);
+                }
+            }
 
             #[cfg(desktop)]
             {

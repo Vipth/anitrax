@@ -97,6 +97,10 @@ pub async fn full_sync(state: &AppState, service: Option<&str>) -> AppResult<Syn
 }
 
 pub const SYNC_ON_STARTUP_KEY: &str = "sync_on_startup";
+/// M7 — tray + background running.
+pub const CLOSE_TO_TRAY_KEY: &str = "close_to_tray";
+pub const START_ON_LOGIN_KEY: &str = "start_on_login";
+pub const START_MINIMIZED_KEY: &str = "start_minimized";
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".

@@ -181,21 +181,35 @@ interface — exact position/duration/path instead of guessing from a title.
 
 ---
 
-## M7 — Tray + background running
+## M7 — Tray + background running  *(built 2026-09-12, acceptance owed)*
 
 Quality-of-life, and a prerequisite for M6 being useful (a detector wants the
 app resident). Small, mostly plumbing.
 
-- **System tray icon** — `TrayIconBuilder`: menu (Open / Sync now / Quit),
-  left-click toggles the window. Closing the window hides to tray instead of
-  quitting; Quit from the menu actually exits.
-- **Close-to-tray toggle** in Settings (default on) — off = the X quits like a
-  normal window.
-- **Start on login** — `tauri-plugin-autostart`; Settings toggle, off by
-  default. Pair with a "start minimised to tray" sub-option so a login-launch
-  doesn't pop a window.
-- Single-instance already wired (`tauri-plugin-single-instance`) — make the
-  second launch focus/restore the existing window.
+- ✅ **System tray icon** — `TrayIconBuilder` with the `[A]` mark: menu (Open /
+  Sync now / Quit), left-click toggles the window (hide if visible, show +
+  focus + un-minimise otherwise).
+- ✅ **Close-to-tray** — the window starts hidden (`tauri.conf.json`) and a
+  `WindowEvent::CloseRequested` handler hides instead of closing when the
+  setting is on; checked against an in-memory `AtomicBool` on `AppState` (kept
+  in sync by the Settings toggle) so the handler stays synchronous. Settings
+  toggle, **default on**. Quit from the tray menu calls `app.exit()` directly,
+  bypassing the handler entirely, so it always really quits.
+- ✅ **Start on login** — `tauri-plugin-autostart`, registered with a
+  `--minimized` launch arg baked in at plugin init; Settings toggle (off by
+  default) calls the plugin's `enable()`/`disable()` and the OS registry entry
+  is the source of truth for what Settings shows (queried live, not trusted
+  from our own DB copy). **Start minimised to tray** sub-option (only shown
+  when "start on login" is on) decides — at *runtime*, from the DB setting —
+  whether a launch carrying that arg actually stays hidden, so toggling it
+  takes effect without re-registering the OS entry.
+- ✅ Single-instance handler upgraded to show + un-minimise + focus (was
+  focus-only, which didn't un-hide a tray-hidden window).
+- ⏳ **Acceptance owed** — needs eyes on a real Windows session: tray icon
+  shows and its menu works, X hides to tray and the app keeps running, Quit
+  actually exits, Settings toggles persist across a relaunch, and (if you're
+  willing to log out/in) a login launch with "start minimised" on comes up
+  hidden while off pops the window normally.
 - Verify on Windows first (macOS/Linux tray behaviour differs — menubar item,
   AppIndicator).
 

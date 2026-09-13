@@ -33,6 +33,15 @@ export const api = {
   setSyncOnStartup: (enabled: boolean) =>
     invoke<void>("set_sync_on_startup", { enabled }),
 
+  setCloseToTray: (enabled: boolean) =>
+    invoke<void>("set_close_to_tray", { enabled }),
+
+  setStartOnLogin: (enabled: boolean) =>
+    invoke<void>("set_start_on_login", { enabled }),
+
+  setStartMinimized: (enabled: boolean) =>
+    invoke<void>("set_start_minimized", { enabled }),
+
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
 
   anilistCompleteLogin: (redirectUrl: string) =>

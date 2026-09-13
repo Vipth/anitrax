@@ -22,24 +22,66 @@ pub struct AppSettings {
     pub anilist_redirect: String,
     pub accounts: Vec<Account>,
     pub sync_on_startup: bool,
+    pub close_to_tray: bool,
+    pub start_on_login: bool,
+    pub start_minimized: bool,
 }
 
 #[tauri::command]
-pub async fn get_settings(state: State<'_, AppState>) -> AppResult<AppSettings> {
+pub async fn get_settings(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<AppSettings> {
+    use tauri_plugin_autostart::ManagerExt;
     let anilist_client_id = repo::get_setting(&state.db, "anilist_client_id")
         .await?
         .and_then(|v| v.as_str().map(str::to_owned));
+    // The OS registry entry is the source of truth — the user could've removed
+    // it outside the app — so read it live rather than trusting our own DB copy.
+    let start_on_login = app.autolaunch().is_enabled().unwrap_or(false);
     Ok(AppSettings {
         anilist_client_id,
         anilist_redirect: auth::ANILIST_REDIRECT.to_string(),
         accounts: repo::list_accounts(&state.db).await?,
         sync_on_startup: repo::get_bool_setting(&state.db, sync::SYNC_ON_STARTUP_KEY, true).await?,
+        close_to_tray: state.is_close_to_tray(),
+        start_on_login,
+        start_minimized: repo::get_bool_setting(&state.db, sync::START_MINIMIZED_KEY, false)
+            .await?,
     })
 }
 
 #[tauri::command]
 pub async fn set_sync_on_startup(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
     repo::set_bool_setting(&state.db, sync::SYNC_ON_STARTUP_KEY, enabled).await
+}
+
+/// M7 — tray + background running.
+#[tauri::command]
+pub async fn set_close_to_tray(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::CLOSE_TO_TRAY_KEY, enabled).await?;
+    state.set_close_to_tray_flag(enabled);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_start_on_login(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> AppResult<()> {
+    use tauri_plugin_autostart::ManagerExt;
+    let al = app.autolaunch();
+    let result = if enabled { al.enable() } else { al.disable() };
+    result.map_err(|e| {
+        crate::error::AppError::other(format!("Couldn't update the login-launch setting: {e}"))
+    })?;
+    repo::set_bool_setting(&state.db, sync::START_ON_LOGIN_KEY, enabled).await
+}
+
+#[tauri::command]
+pub async fn set_start_minimized(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::START_MINIMIZED_KEY, enabled).await
 }
 
 #[tauri::command]

@@ -83,6 +83,10 @@ function SettingsPage() {
         </SettingRow>
       </Section>
 
+      <Section title="Startup & window">
+        <StartupSettings />
+      </Section>
+
       <Section title="Watched folders">
         <WatchedFolders />
       </Section>
@@ -511,6 +515,111 @@ function QbittorrentSettings() {
         )}
       </div>
     </div>
+  );
+}
+
+function StartupSettings() {
+  const { data: settings } = useSettings();
+
+  return (
+    <div className="space-y-4">
+      <SettingRow
+        label="Close to tray"
+        hint="The window's X hides AniTrax to the system tray instead of quitting. Quit from the tray icon's menu to actually exit."
+      >
+        <CloseToTrayToggle />
+      </SettingRow>
+      <SettingRow label="Start on login">
+        <StartOnLoginToggle />
+      </SettingRow>
+      {settings?.startOnLogin && (
+        <SettingRow
+          label="Start minimised to tray"
+          hint="Skip popping a window when AniTrax launches at login."
+        >
+          <StartMinimizedToggle />
+        </SettingRow>
+      )}
+    </div>
+  );
+}
+
+function CloseToTrayToggle() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const enabled = settings?.closeToTray ?? true;
+
+  const mut = useMutation({
+    mutationFn: (v: boolean) => api.setCloseToTray(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, closeToTray: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <Switch checked={enabled} onCheckedChange={(v) => mut.mutate(v)} aria-label="Close to tray" />
+  );
+}
+
+function StartOnLoginToggle() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const enabled = settings?.startOnLogin ?? false;
+
+  const mut = useMutation({
+    mutationFn: (v: boolean) => api.setStartOnLogin(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, startOnLogin: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <Switch checked={enabled} onCheckedChange={(v) => mut.mutate(v)} aria-label="Start on login" />
+  );
+}
+
+function StartMinimizedToggle() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const enabled = settings?.startMinimized ?? false;
+
+  const mut = useMutation({
+    mutationFn: (v: boolean) => api.setStartMinimized(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, startMinimized: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <Switch
+      checked={enabled}
+      onCheckedChange={(v) => mut.mutate(v)}
+      aria-label="Start minimised to tray"
+    />
   );
 }
 

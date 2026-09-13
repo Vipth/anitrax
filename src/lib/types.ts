@@ -109,6 +109,9 @@ export interface AppSettings {
   anilistRedirect: string;
   accounts: Account[];
   syncOnStartup: boolean;
+  closeToTray: boolean;
+  startOnLogin: boolean;
+  startMinimized: boolean;
 }
 
 export interface SyncReport {
