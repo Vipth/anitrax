@@ -280,7 +280,8 @@ default — opt-in on top of 6a. Player list + per-player enable in Settings.
 - Since this shares 6a's tracker, it inherits the same wall-clock-only
   limitation — no real position, just "the window's been up a while."
 
-**6c — live position via VLC or mpv.** *(built 2026-09-13, acceptance owed)*
+**6c — live position via VLC or mpv.** *(built 2026-09-13, mpv accepted
+2026-09-14, VLC acceptance owed)*
 Scoped down from the original three-protocol plan (mpv IPC + VLC HTTP +
 MPC-HC web interface) after weighing it against "this should stay easy for
 someone else to pick up" — an *already-running* player (6b's case) needs the
@@ -330,15 +331,25 @@ untouched — still the wall-clock heuristic.
 - ✅ 4 new unit tests (`Live` sessions never fire from `tick()`, still expire
   at `MAX_SESSION_AGE`, `update_live`/`remove` behave) — 61 backend tests
   total, all passing.
-- ✅ **Partially verified live (2026-09-13)** — launched VLC through this
-  path with a real episode; VLC's own log confirmed `Status file
-  authenticated`, meaning the random port/password handshake and the
-  `--extraintf http` flags work exactly as implemented. Didn't reach a full
-  confirm/bump firing in that session (VLC hit an unrelated hardware-decoder
-  error on that machine, and the user's actual player turned out to be mpv,
-  not VLC — mpv support was added same-day as a result).
-- ⏳ **Acceptance owed** — mpv hasn't been live-tested at all yet, and VLC's
-  full flow (an actual 90%-threshold firing) hasn't either.
+- ✅ **Acceptance passed for mpv (2026-09-14)** — a real episode through mpv,
+  end to end: launched directly, IPC pipe connected, position polled, and the
+  confirm popup fired correctly (around 98% through — a bit past the 90%
+  target, well within the 10s poll granularity, not a concern). Also chased
+  down a scare along the way: the popup appeared to close on any click inside
+  it, not just its buttons. Root-caused as a stale dev-server artifact (a
+  leftover Vite process still bound to port 1420 from an earlier restart, so
+  the app was talking to a dev server with a stale module graph) rather than
+  a real bug — window-event tracing on a clean restart showed a normal
+  `Focused(true/false)` churn followed by a legitimate `CloseRequested` only
+  when a button was actually clicked. Also bumped the popup's auto-dismiss
+  from 30s to 90s per feedback that 30s was too easy to miss.
+- ⏳ **VLC acceptance still owed** — its launch/auth mechanism was confirmed
+  working live on 2026-09-13 (`Status file authenticated` in VLC's own log),
+  but a full 90%-threshold firing hasn't been observed for VLC specifically
+  (that session hit an unrelated VLC hardware-decoder error before reaching
+  it). Given mpv's confirm-popup path is now proven end-to-end and both
+  players share the same `fire_ready`/popup code downstream of their
+  pollers, this is a low-risk gap — just hasn't been directly observed yet.
 - Not built: MPC-HC/BE (no CLI hook for its web interface) and anything for
   6b's already-running-player case — both remain on the wall-clock heuristic.
 

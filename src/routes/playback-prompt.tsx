@@ -21,8 +21,9 @@ interface PopupData {
   episodesTotal: number | null;
 }
 
-// A window this small doesn't get to close itself indefinitely.
-const AUTO_DISMISS_MS = 30_000;
+// A window this small doesn't get to close itself indefinitely — but 30s
+// was too easy to miss entirely (user feedback 2026-09-14); give it more room.
+const AUTO_DISMISS_MS = 90_000;
 
 /** `close()` can reject (missing permission, already-closing window, …) —
  * never let that silently strand the popup on screen. */
