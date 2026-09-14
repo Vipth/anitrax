@@ -47,7 +47,7 @@ fn toggle_main_window(app: &AppHandle) {
 /// permanently intrusive though: the window itself is short-lived (the
 /// frontend auto-closes it in 30s, or instantly on either button), so
 /// "always on top" only ever applies for that brief window, not forever.
-fn show_playback_popup(
+pub(crate) fn show_playback_popup(
     app: &AppHandle,
     service: &str,
     media_id: i64,
@@ -187,6 +187,7 @@ pub fn run() {
             commands::known_players,
             commands::set_playback_window_detect,
             commands::set_monitored_players,
+            commands::set_player_integration,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -463,57 +464,17 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     loop {
                         tokio::time::sleep(sync::PLAYBACK_POLL_EVERY).await;
-                        let ready = s.playback.tick();
-                        if ready.is_empty() {
-                            continue;
-                        }
-                        let silent = db::repo::get_setting(&s.db, sync::PLAYBACK_MODE_KEY)
-                            .await
-                            .ok()
-                            .flatten()
-                            .and_then(|v| v.as_str().map(|m| m == "silent"))
-                            .unwrap_or(false);
-                        for item in ready {
-                            if silent {
-                                match sync::bump_from_playback(
-                                    &s,
-                                    &item.service,
-                                    item.media_id,
-                                    item.episode,
-                                )
-                                .await
-                                {
-                                    Ok(_) => {
-                                        tracing::info!(title = %item.title, episode = item.episode, "playback bumped (silent mode)");
-                                        let _ = h.emit("entries-updated", ());
-                                        // An in-app toast, not an OS notification — the
-                                        // Windows toast sound isn't something we can
-                                        // reliably silence for an unpackaged app (the
-                                        // `<audio silent="true">` toast element is
-                                        // honoured inconsistently without a properly
-                                        // registered AUMID), and "silent mode" should
-                                        // mean silent.
-                                        let _ = h.emit(
-                                            "playback-bumped",
-                                            serde_json::json!({
-                                                "title": item.title,
-                                                "episode": item.episode,
-                                            }),
-                                        );
-                                    }
-                                    Err(e) => tracing::warn!(?e, "playback auto-bump failed"),
-                                }
-                            } else {
-                                tracing::info!(title = %item.title, episode = item.episode, "playback confirm firing");
-                                show_playback_popup(
-                                    &h,
-                                    &item.service,
-                                    item.media_id,
-                                    item.episode,
-                                    &item.title,
-                                    item.episodes_total,
-                                );
-                            }
+                        for item in s.playback.tick() {
+                            sync::fire_ready(
+                                &h,
+                                &s,
+                                &item.service,
+                                item.media_id,
+                                item.episode,
+                                &item.title,
+                                item.episodes_total,
+                            )
+                            .await;
                         }
                     }
                 });

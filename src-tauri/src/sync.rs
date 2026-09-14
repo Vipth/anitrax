@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 
 use crate::auth;
 use crate::db::repo;
@@ -12,6 +13,7 @@ use crate::error::{AppError, AppResult};
 use crate::library::{
     matcher, scanner, LibraryFile, LibraryFolder, LinkRule, OwnedMedia, ScanReport,
 };
+use crate::playback::live::{PlayerIntegration, PlayerKind};
 use crate::state::AppState;
 use crate::tracker::model::*;
 use crate::tracker::TrackerService;
@@ -115,6 +117,11 @@ pub const PLAYBACK_WINDOW_DETECT_KEY: &str = "playback_window_detect";
 pub const PLAYBACK_MONITORED_PLAYERS_KEY: &str = "playback_monitored_players";
 /// How often the foreground window is checked.
 pub const WINDOW_DETECT_POLL_EVERY: Duration = Duration::from_secs(10);
+/// M6c — launch a configured player directly and track its real position
+/// instead of guessing. `"none"` (or unset) means "don't" — falls back to the
+/// OS opener + wall-clock heuristic.
+pub const PLAYER_INTEGRATION_KIND_KEY: &str = "player_integration_kind";
+pub const PLAYER_INTEGRATION_PATH_KEY: &str = "player_integration_path";
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".
@@ -454,6 +461,62 @@ pub async fn bump_from_playback(
         ..Default::default()
     };
     edit_entry(state, Some(service), patch).await
+}
+
+/// Deliver a "this episode is probably done" result exactly the same way
+/// regardless of what decided it — the wall-clock tick loop (6a/6b) and a
+/// live-position poller (6c) both call this, so confirm/silent handling can't
+/// drift between detection sources.
+pub async fn fire_ready(
+    app: &AppHandle,
+    state: &AppState,
+    service: &str,
+    media_id: i64,
+    episode: i64,
+    title: &str,
+    episodes_total: Option<i64>,
+) {
+    let silent = repo::get_setting(&state.db, PLAYBACK_MODE_KEY)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|v| v.as_str().map(|m| m == "silent"))
+        .unwrap_or(false);
+
+    if silent {
+        match bump_from_playback(state, service, media_id, episode).await {
+            Ok(_) => {
+                tracing::info!(title = %title, episode, "playback bumped (silent mode)");
+                let _ = app.emit("entries-updated", ());
+                // An in-app toast, not an OS notification — see the M6a note
+                // in lib.rs's background poll task for why.
+                let _ = app.emit(
+                    "playback-bumped",
+                    serde_json::json!({ "title": title, "episode": episode }),
+                );
+            }
+            Err(e) => tracing::warn!(?e, "playback auto-bump failed"),
+        }
+    } else {
+        tracing::info!(title = %title, episode, "playback confirm firing");
+        crate::show_playback_popup(app, service, media_id, episode, title, episodes_total);
+    }
+}
+
+/// The user's configured "launch directly + track real position" player
+/// (M6c) — `None` if unset, in which case `play_episode` falls back to the
+/// OS opener and the wall-clock heuristic.
+pub async fn player_integration(state: &AppState) -> AppResult<Option<PlayerIntegration>> {
+    let Some(kind) = repo::get_setting(&state.db, PLAYER_INTEGRATION_KIND_KEY)
+        .await?
+        .and_then(|v| v.as_str().and_then(PlayerKind::parse))
+    else {
+        return Ok(None);
+    };
+    let exe = repo::get_setting(&state.db, PLAYER_INTEGRATION_PATH_KEY)
+        .await?
+        .and_then(|v| v.as_str().filter(|s| !s.is_empty()).map(PathBuf::from));
+    Ok(exe.map(|exe| PlayerIntegration { kind, exe }))
 }
 
 /// M6b: check whatever window currently has focus. If it's a monitored player

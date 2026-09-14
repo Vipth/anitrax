@@ -1,12 +1,12 @@
 //! Playback detection (M6a): "you hit Play, so we already know the show,
 //! episode and file — a fixed amount of time after we notice it, offer to
-//! bump progress." No window-scraping, no player IPC (that's 6b/6c); this
-//! only tracks episodes opened through AniTrax's own Play button, and only
-//! ever the next unwatched one (enforced by
-//! [`crate::sync::prepare_watch_session`], which won't track a replay of an
-//! already-seen episode).
+//! bump progress." M6b adds any-player window-title detection on top of the
+//! same tracker. M6c (`live`) adds a third way to fill in a `WatchSession`,
+//! for self-launched VLC: a dedicated poller asks the player its real
+//! position instead of guessing from wall-clock time.
 
 pub mod detect;
+pub mod live;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -33,6 +33,26 @@ pub const CONFIRM_AFTER: Duration = Duration::from_secs(2 * 60);
 /// dismissed prompt would just come right back in another `CONFIRM_AFTER`.
 pub const RENOTIFY_AFTER: Duration = Duration::from_secs(12 * 60);
 
+/// How a `WatchSession` decides "the episode is probably done."
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgressSource {
+    /// 6a/6b: a fixed delay since the session was started/first detected.
+    /// `tick()` owns firing for these.
+    WallClock,
+    /// 6c: a dedicated poller (`playback::live`) owns firing and cleanup for
+    /// this session entirely — `tick()` only prunes it by `MAX_SESSION_AGE`,
+    /// it never fires it via the wall clock.
+    Live,
+}
+
+/// Real position/duration as last reported by a 6c live poller, for the "Now
+/// watching" strip. `None` fields for a `WallClock` session.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LivePosition {
+    pub position_secs: u64,
+    pub duration_secs: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct WatchSession {
     pub service: ServiceKind,
@@ -42,8 +62,12 @@ pub struct WatchSession {
     pub episodes_total: Option<i64>,
     pub started_at: Instant,
     /// Elapsed time at which we consider the episode "probably watched" (or,
-    /// after the first fire, "worth asking about again").
+    /// after the first fire, "worth asking about again"). Meaningless for a
+    /// `Live` session — `tick()` never reads it for one.
     pub threshold: Duration,
+    pub source: ProgressSource,
+    /// `Some` only for a `Live` session; updated by its poller on every poll.
+    pub live: Option<Arc<Mutex<LivePosition>>>,
 }
 
 impl WatchSession {
@@ -62,6 +86,20 @@ impl WatchSession {
             episodes_total,
             started_at: Instant::now(),
             threshold: CONFIRM_AFTER,
+            source: ProgressSource::WallClock,
+            live: None,
+        }
+    }
+
+    /// A copy of this session tagged for 6c live-position tracking instead of
+    /// the wall-clock heuristic. Takes `&self` rather than consuming — the
+    /// caller may still need the original if launching the live player fails
+    /// and it falls back to the OS opener + wall-clock tracking.
+    pub fn as_live(&self) -> Self {
+        Self {
+            source: ProgressSource::Live,
+            live: Some(Arc::new(Mutex::new(LivePosition::default()))),
+            ..self.clone()
         }
     }
 }
@@ -82,9 +120,14 @@ pub struct WatchSessionView {
     pub episodes_total: Option<i64>,
     pub elapsed_secs: u64,
     pub threshold_secs: u64,
+    /// Real player position/duration for a `Live` session; `None` for a
+    /// `WallClock` one (or before its first poll has reported in).
+    pub position_secs: Option<u64>,
+    pub duration_secs: Option<u64>,
 }
 
 fn view_of(s: &WatchSession) -> WatchSessionView {
+    let live = s.live.as_ref().map(|l| *l.lock().unwrap());
     WatchSessionView {
         service: s.service.as_str().into(),
         media_id: s.media_id,
@@ -93,6 +136,8 @@ fn view_of(s: &WatchSession) -> WatchSessionView {
         episodes_total: s.episodes_total,
         elapsed_secs: s.started_at.elapsed().as_secs(),
         threshold_secs: s.threshold.as_secs(),
+        position_secs: live.map(|l| l.position_secs),
+        duration_secs: live.map(|l| l.duration_secs),
     }
 }
 
@@ -130,6 +175,31 @@ impl PlaybackTracker {
             .retain(|k, _| !(k.0 == service && k.1 == media_id && k.2 <= progress));
     }
 
+    /// Drop one exact session outright — used by a 6c live poller when the
+    /// player closes before the episode actually finished, so it doesn't
+    /// linger as "now watching" (and never fires a prompt for it).
+    pub fn remove(&self, service: ServiceKind, media_id: i64, episode: i64) {
+        self.sessions.lock().unwrap().remove(&(service, media_id, episode));
+    }
+
+    /// Record a 6c poller's latest read of a session's real position, for the
+    /// "Now watching" strip. A no-op if the session isn't tracked (already
+    /// resolved/removed) or isn't `Live`.
+    pub fn update_live(
+        &self,
+        service: ServiceKind,
+        media_id: i64,
+        episode: i64,
+        position_secs: u64,
+        duration_secs: u64,
+    ) {
+        if let Some(s) = self.sessions.lock().unwrap().get(&(service, media_id, episode)) {
+            if let Some(live) = &s.live {
+                *live.lock().unwrap() = LivePosition { position_secs, duration_secs };
+            }
+        }
+    }
+
     /// For the "Now watching" strip.
     pub fn list(&self) -> Vec<WatchSessionView> {
         self.sessions.lock().unwrap().values().map(view_of).collect()
@@ -141,11 +211,17 @@ impl PlaybackTracker {
     /// (dismissed, ignored, or just re-detected by M6b while still playing)
     /// comes back on a longer, less naggy interval instead of immediately.
     /// Only a progress edit (`stop_up_to`) or old age actually clears one.
+    /// `Live` sessions are never fired from here — their own poller (6c)
+    /// owns that — this just applies the same `MAX_SESSION_AGE` safety net to
+    /// them in case a poller task dies without cleaning up after itself.
     pub fn tick(&self) -> Vec<WatchSessionView> {
         let mut sessions = self.sessions.lock().unwrap();
         sessions.retain(|_, s| s.started_at.elapsed() < MAX_SESSION_AGE);
         let mut ready = Vec::new();
         for s in sessions.values_mut() {
+            if s.source == ProgressSource::Live {
+                continue;
+            }
             if s.started_at.elapsed() >= s.threshold {
                 ready.push(view_of(s));
                 s.started_at = Instant::now();
@@ -234,6 +310,40 @@ mod tests {
         let tracker = PlaybackTracker::new();
         tracker.start(backdated(session(), MAX_SESSION_AGE + Duration::from_secs(1)));
         assert!(tracker.tick().is_empty());
+        assert!(tracker.list().is_empty());
+    }
+
+    #[test]
+    fn tick_never_fires_a_live_session_even_past_threshold() {
+        let tracker = PlaybackTracker::new();
+        tracker.start(backdated(session().as_live(), CONFIRM_AFTER + Duration::from_secs(1)));
+        assert!(tracker.tick().is_empty());
+        assert_eq!(tracker.list().len(), 1);
+    }
+
+    #[test]
+    fn live_session_still_expires_at_max_age_as_a_safety_net() {
+        let tracker = PlaybackTracker::new();
+        tracker.start(backdated(session().as_live(), MAX_SESSION_AGE + Duration::from_secs(1)));
+        assert!(tracker.tick().is_empty());
+        assert!(tracker.list().is_empty());
+    }
+
+    #[test]
+    fn update_live_is_reflected_in_the_view() {
+        let tracker = PlaybackTracker::new();
+        tracker.start(session().as_live());
+        tracker.update_live(ServiceKind::AniList, 1, 5, 300, 1400);
+        let view = &tracker.list()[0];
+        assert_eq!(view.position_secs, Some(300));
+        assert_eq!(view.duration_secs, Some(1400));
+    }
+
+    #[test]
+    fn remove_drops_the_exact_session() {
+        let tracker = PlaybackTracker::new();
+        tracker.start(session().as_live());
+        tracker.remove(ServiceKind::AniList, 1, 5);
         assert!(tracker.list().is_empty());
     }
 }

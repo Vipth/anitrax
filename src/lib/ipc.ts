@@ -13,6 +13,7 @@ import type {
   MediaListEntry,
   OwnedMedia,
   PlaybackMode,
+  PlayerIntegrationKind,
   QbConfig,
   RssCheckReport,
   RssFeed,
@@ -60,6 +61,9 @@ export const api = {
 
   setMonitoredPlayers: (players: string[]) =>
     invoke<void>("set_monitored_players", { players }),
+
+  setPlayerIntegration: (kind: PlayerIntegrationKind | null, path: string | null) =>
+    invoke<void>("set_player_integration", { kind, path }),
 
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
 

@@ -106,6 +106,9 @@ export interface Account {
 
 export type PlaybackMode = "confirm" | "silent";
 
+// M6c — the only live-position player supported so far.
+export type PlayerIntegrationKind = "vlc";
+
 export interface AppSettings {
   anilistClientId: string | null;
   anilistRedirect: string;
@@ -118,6 +121,8 @@ export interface AppSettings {
   playbackMode: PlaybackMode;
   playbackWindowDetect: boolean;
   monitoredPlayers: string[];
+  playerIntegrationKind: PlayerIntegrationKind | null;
+  playerIntegrationPath: string | null;
 }
 
 export interface KnownPlayer {
@@ -134,6 +139,9 @@ export interface WatchSessionView {
   episodesTotal: number | null;
   elapsedSecs: number;
   thresholdSecs: number;
+  // M6c — set only for a live-position session, once its poller has reported in.
+  positionSecs: number | null;
+  durationSecs: number | null;
 }
 
 export interface SyncReport {

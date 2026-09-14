@@ -29,6 +29,9 @@ pub struct AppSettings {
     pub playback_mode: String,
     pub playback_window_detect: bool,
     pub monitored_players: Vec<String>,
+    /// M6c — set together, or both `None` (no live-position player configured).
+    pub player_integration_kind: Option<String>,
+    pub player_integration_path: Option<String>,
 }
 
 #[tauri::command]
@@ -43,6 +46,7 @@ pub async fn get_settings(
     // The OS registry entry is the source of truth — the user could've removed
     // it outside the app — so read it live rather than trusting our own DB copy.
     let start_on_login = app.autolaunch().is_enabled().unwrap_or(false);
+    let player_integration = sync::player_integration(&state).await?;
     Ok(AppSettings {
         anilist_client_id,
         anilist_redirect: auth::ANILIST_REDIRECT.to_string(),
@@ -65,6 +69,8 @@ pub async fn get_settings(
         )
         .await?,
         monitored_players: repo::enabled_players(&state.db).await?,
+        player_integration_kind: player_integration.as_ref().map(|p| p.kind.as_str().to_string()),
+        player_integration_path: player_integration.map(|p| p.exe.display().to_string()),
     })
 }
 
@@ -157,6 +163,28 @@ pub async fn set_monitored_players(
     players: Vec<String>,
 ) -> AppResult<()> {
     repo::set_enabled_players(&state.db, &players).await
+}
+
+/// M6c — configure (or clear, by passing `kind: None`) the player AniTrax
+/// launches directly for real-position tracking.
+#[tauri::command]
+pub async fn set_player_integration(
+    state: State<'_, AppState>,
+    kind: Option<String>,
+    path: Option<String>,
+) -> AppResult<()> {
+    let path = path.as_deref().map(str::trim).filter(|p| !p.is_empty());
+    let valid = kind.as_deref().and_then(crate::playback::live::PlayerKind::parse).zip(path);
+
+    let (kind_str, path_str) = match valid {
+        Some((kind, path)) => (kind.as_str(), path),
+        None => ("none", ""),
+    };
+    repo::set_setting(&state.db, sync::PLAYER_INTEGRATION_KIND_KEY, &serde_json::json!(kind_str))
+        .await?;
+    repo::set_setting(&state.db, sync::PLAYER_INTEGRATION_PATH_KEY, &serde_json::json!(path_str))
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -364,7 +392,11 @@ pub async fn library_owned(state: State<'_, AppState>) -> AppResult<Vec<OwnedMed
     sync::owned_media(&state).await
 }
 
-/// Open the local file for `episode` of `media_id` in the OS default player.
+/// Open the local file for `episode` of `media_id`. Normally hands it to the
+/// OS default player; if a live-position player is configured (M6c) and this
+/// episode is actually going to be tracked, launches it directly instead so
+/// a dedicated poller can ask the player its real position rather than
+/// guessing from wall-clock time.
 #[tauri::command]
 pub async fn play_episode(
     app: tauri::AppHandle,
@@ -374,15 +406,50 @@ pub async fn play_episode(
     service: Option<String>,
 ) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt;
+
     let path = sync::episode_file_path(&state, service.as_deref(), media_id, episode).await?;
+
+    // Best-effort — a failure here shouldn't stop the file from having opened.
+    let session = match sync::prepare_watch_session(&state, service.as_deref(), media_id, episode).await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(?e, "couldn't prepare playback tracking");
+            None
+        }
+    };
+
+    if let Some(session) = &session {
+        if let Ok(Some(player)) = sync::player_integration(&state).await {
+            if player.exe.exists() {
+                tracing::info!(
+                    title = %session.title,
+                    episode,
+                    player = player.kind.as_str(),
+                    "playback tracking started (live position)"
+                );
+                match crate::playback::live::spawn_and_track(
+                    app.clone(),
+                    (*state).clone(),
+                    player.kind,
+                    &player.exe,
+                    std::path::Path::new(&path),
+                    session.as_live(),
+                ) {
+                    Ok(()) => return Ok(()),
+                    Err(e) => tracing::warn!(?e, "live player launch failed, falling back to the default player"),
+                }
+            } else {
+                tracing::debug!(path = %player.exe.display(), "configured player executable not found, falling back");
+            }
+        }
+    }
+
     app.opener()
         .open_path(path, None::<&str>)
         .map_err(|e| crate::error::AppError::other(format!("Couldn't open the file: {e}")))?;
 
-    // M6a: track this episode for auto-progress detection. Best-effort — a
-    // failure here shouldn't stop the file from having opened.
-    match sync::prepare_watch_session(&state, service.as_deref(), media_id, episode).await {
-        Ok(Some(session)) => {
+    match session {
+        Some(session) => {
             tracing::info!(
                 title = %session.title,
                 episode,
@@ -391,8 +458,7 @@ pub async fn play_episode(
             );
             state.playback.start(session);
         }
-        Ok(None) => tracing::debug!(media_id, episode, "playback tracking skipped (see prepare_watch_session gates)"),
-        Err(e) => tracing::warn!(?e, "couldn't prepare playback tracking"),
+        None => tracing::debug!(media_id, episode, "playback tracking skipped (see prepare_watch_session gates)"),
     }
     Ok(())
 }

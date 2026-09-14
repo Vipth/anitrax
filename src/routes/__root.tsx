@@ -193,6 +193,9 @@ function NowWatchingStrip() {
           <Play className="size-3 shrink-0 fill-current text-primary" />
           <span className="max-w-[16rem] truncate">{s.title}</span>
           <span>· Ep {s.episode}</span>
+          {s.durationSecs != null && s.durationSecs > 0 && s.positionSecs != null && (
+            <span>· {Math.round((s.positionSecs / s.durationSecs) * 100)}%</span>
+          )}
         </Link>
       ))}
     </div>
