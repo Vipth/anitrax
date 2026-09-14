@@ -675,15 +675,20 @@ function PlaybackSettings() {
   );
 }
 
-/** M6c: launch VLC directly and track its real playback position instead of
- * guessing from a flat delay. Only offered while the exe is confirmed to
+const PLAYER_LABEL: Record<PlayerIntegrationKind, string> = {
+  vlc: "VLC",
+  mpv: "mpv",
+};
+
+/** M6c: launch VLC or mpv directly and track real playback position instead
+ * of guessing from a flat delay. Only taken while the exe is confirmed to
  * exist — a stale/moved path just quietly falls back (see `play_episode`). */
 function PlayerIntegrationSetting() {
   const { data: settings } = useSettings();
   const qc = useQueryClient();
   const kind = settings?.playerIntegrationKind ?? null;
   const path = settings?.playerIntegrationPath ?? null;
-  const active = kind === "vlc" && !!path;
+  const active = kind != null && !!path;
 
   const save = useMutation({
     mutationFn: (args: { kind: PlayerIntegrationKind | null; path: string | null }) =>
@@ -692,48 +697,53 @@ function PlayerIntegrationSetting() {
     onError: (e) => toast.error("Couldn't save", errorMessage(e)),
   });
 
-  const browse = async () => {
+  const browse = async (target: PlayerIntegrationKind) => {
     const picked = await open({
       multiple: false,
-      filters: [{ name: "VLC media player", extensions: ["exe"] }],
+      filters: [{ name: PLAYER_LABEL[target], extensions: ["exe"] }],
     });
     if (typeof picked !== "string") return;
-    save.mutate({ kind: "vlc", path: picked });
+    save.mutate({ kind: target, path: picked });
   };
 
   return (
     <SettingRow
-      label="Track exact progress via VLC"
+      label="Track exact progress via"
       hint={
         active
-          ? "Play launches VLC directly and asks it exactly where playback is, instead of guessing from a flat delay. Pausing or seeking away no longer counts toward it, and closing VLC before the episode actually finishes means no bump at all."
-          : "Point AniTrax at your vlc.exe once — nothing to configure inside VLC itself. Play then launches VLC directly and tracks its real position instead of a flat delay."
+          ? `Play launches ${PLAYER_LABEL[kind]} directly and asks it exactly where playback is, instead of guessing from a flat delay. Pausing or seeking away no longer counts toward it, and closing it before the episode actually finishes means no bump at all.`
+          : "Point AniTrax at your VLC or mpv executable once — nothing to configure in the player itself. Play then launches it directly and tracks real position instead of a flat delay."
       }
     >
       <div className="flex items-center gap-2">
-        {active && path && (
-          <span
-            className="max-w-[14rem] truncate text-xs text-muted-foreground"
-            title={path}
-          >
-            {path}
-          </span>
-        )}
-        <Button
-          variant={active ? "secondary" : "default"}
-          size="sm"
-          onClick={browse}
-          disabled={save.isPending}
-        >
-          {active ? "Change" : "Choose vlc.exe"}
-        </Button>
-        {active && (
-          <button
-            onClick={() => save.mutate({ kind: null, path: null })}
-            className="text-xs font-medium text-muted-foreground hover:text-danger"
-          >
-            Remove
-          </button>
+        {active ? (
+          <>
+            <span className="text-xs font-medium">{PLAYER_LABEL[kind]}</span>
+            <span
+              className="max-w-[12rem] truncate text-xs text-muted-foreground"
+              title={path ?? undefined}
+            >
+              {path}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => browse(kind)}>
+              Change
+            </Button>
+            <button
+              onClick={() => save.mutate({ kind: null, path: null })}
+              className="text-xs font-medium text-muted-foreground hover:text-danger"
+            >
+              Remove
+            </button>
+          </>
+        ) : (
+          <>
+            <Button size="sm" onClick={() => browse("mpv")} disabled={save.isPending}>
+              Choose mpv.exe
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => browse("vlc")} disabled={save.isPending}>
+              Choose vlc.exe
+            </Button>
+          </>
         )}
       </div>
     </SettingRow>

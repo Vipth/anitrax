@@ -106,8 +106,8 @@ export interface Account {
 
 export type PlaybackMode = "confirm" | "silent";
 
-// M6c — the only live-position player supported so far.
-export type PlayerIntegrationKind = "vlc";
+// M6c — live-position players supported so far.
+export type PlayerIntegrationKind = "vlc" | "mpv";
 
 export interface AppSettings {
   anilistClientId: string | null;

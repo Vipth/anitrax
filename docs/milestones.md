@@ -280,35 +280,36 @@ default — opt-in on top of 6a. Player list + per-player enable in Settings.
 - Since this shares 6a's tracker, it inherits the same wall-clock-only
   limitation — no real position, just "the window's been up a while."
 
-**6c — live position via VLC.** *(built 2026-09-13, acceptance owed)* Scoped
-down from the original three-protocol plan (mpv IPC + VLC HTTP + MPC-HC web
-interface) after weighing it against "this should stay easy for someone else
-to pick up" — VLC and mpv's *already-running* instances both need the user to
-go configure something outside AniTrax first (an `mpv.conf` line, VLC's own
-web-interface toggle + password), which is exactly the kind of setup burden
-the rest of the app avoids. The fix: for a **self-launched** session (the
-Play button), AniTrax controls how the process is spawned, so it can just
-pass VLC's HTTP-interface flags on the command line — a random port +
-password generated per launch, nothing to configure in VLC itself, ever.
-mpv would need its own transport (a named pipe/socket) and is a reasonable
-follow-up, not built here; MPC-HC/BE has no CLI equivalent for its web
-interface, so it's not a candidate for this zero-setup approach at all.
-6b (any already-running player, including VLC opened outside AniTrax) is
+**6c — live position via VLC or mpv.** *(built 2026-09-13, acceptance owed)*
+Scoped down from the original three-protocol plan (mpv IPC + VLC HTTP +
+MPC-HC web interface) after weighing it against "this should stay easy for
+someone else to pick up" — an *already-running* player (6b's case) needs the
+user to go configure something outside AniTrax first (an `mpv.conf` line,
+VLC's own web-interface toggle + password), which is exactly the kind of
+setup burden the rest of the app avoids. The fix: for a **self-launched**
+session (the Play button), AniTrax controls how the process is spawned, so it
+can just pass the right flags on the command line — nothing to configure in
+the player itself, ever. MPC-HC/BE has no CLI equivalent for its web
+interface, so it's not a candidate for this zero-setup approach. 6b (any
+already-running player, including VLC/mpv opened outside AniTrax) is
 untouched — still the wall-clock heuristic.
 
-- ✅ `playback::live` — `PlayerKind::Vlc` only. `spawn_and_track` launches
-  `vlc.exe <file> --extraintf http --http-host 127.0.0.1 --http-port <n>
-  --http-password <token>` (random port + token per launch), then a
-  dedicated poller asks `http://127.0.0.1:<n>/requests/status.json` (HTTP
-  Basic auth, empty username) every 10s for `time`/`length`. Fires the usual
-  confirm/silent flow once `time / length >= 0.90` — a fraction of the
-  reported length rather than a fixed delay, so it adapts to the episode's
-  actual runtime instead of guessing.
+- ✅ `playback::live` — `PlayerKind::{Vlc,Mpv}`. VLC: `spawn_and_track`
+  launches `vlc.exe <file> --extraintf http --http-host 127.0.0.1 --http-port
+  <n> --http-password <token>` (random port + token per launch), then polls
+  `http://127.0.0.1:<n>/requests/status.json` (HTTP Basic auth, empty
+  username) every 10s for `time`/`length`. mpv: launches `mpv.exe <file>
+  --input-ipc-server=<address>` (a named pipe on Windows, a unix socket
+  elsewhere; also a fresh random address per launch), then polls
+  `get_property time-pos`/`duration` over its JSON-lines IPC protocol every
+  10s. Both fire the usual confirm/silent flow once `position / duration >=
+  0.90` — a fraction of the reported length rather than a fixed delay, so it
+  adapts to the episode's actual runtime instead of guessing.
 - ✅ Fixes 6a/6b's shared blind spot for free: since this reads the player's
   actual position instead of counting wall-clock time, pausing or seeking
   back just means the reported position stops advancing — nothing extra to
-  detect. Closing VLC before the episode actually finishes now means no bump
-  at all, instead of "walked away and it still counts."
+  detect. Closing the player before the episode actually finishes now means
+  no bump at all, instead of "walked away and it still counts."
 - ✅ `WatchSession` gained `ProgressSource` (`WallClock` vs `Live`) and an
   optional shared `LivePosition` cell the poller updates — `tick()` skips
   `Live` sessions from ever firing itself (only the poller does), but still
@@ -317,26 +318,29 @@ untouched — still the wall-clock heuristic.
   without finishing" case; `update_live` feeds the "Now watching" strip a
   real `N%` instead of nothing.
 - ✅ `sync::fire_ready` — the confirm-popup-vs-silent-bump decision, factored
-  out of the 6a/6b tick loop in `lib.rs` so both it and the new poller agree
-  on exactly how a "ready" result is delivered; nothing about the popup/toast
+  out of the 6a/6b tick loop in `lib.rs` so it and both pollers agree on
+  exactly how a "ready" result is delivered; nothing about the popup/toast
   mechanism itself changed.
-- ✅ Settings → **Track exact progress via VLC** (nested under the base
-  playback-detection toggle): a native file picker for `vlc.exe`, no other
-  configuration. `play_episode` only takes this path when the episode is
-  actually going to be tracked (same `progress + 1` gate as always) and the
-  configured exe still exists on disk; otherwise it falls back to the OS
+- ✅ Settings → **Track exact progress via** VLC or mpv (nested under the
+  base playback-detection toggle): a native file picker for the exe, no
+  other configuration. `play_episode` only takes this path when the episode
+  is actually going to be tracked (same `progress + 1` gate as always) and
+  the configured exe still exists on disk; otherwise it falls back to the OS
   opener + wall-clock heuristic exactly as before, silently.
 - ✅ 4 new unit tests (`Live` sessions never fire from `tick()`, still expire
   at `MAX_SESSION_AGE`, `update_live`/`remove` behave) — 61 backend tests
   total, all passing.
-- ⏳ **Acceptance owed** — this is the one part of M6 not yet touched by a
-  real playback test. VLC's exact `--extraintf`/`--http-*` flag names and the
-  `status.json` field names (`time`, `length`) are implemented from
-  documented VLC behaviour, not verified against a real launch — expect a
-  small flag/parsing fix on first live test, same pattern 6a/6b went through.
-- Not built: mpv support (needs its own IPC transport), MPC-HC/BE (no CLI
-  hook for its web interface), and anything for 6b's already-running-player
-  case — all remain on the wall-clock heuristic.
+- ✅ **Partially verified live (2026-09-13)** — launched VLC through this
+  path with a real episode; VLC's own log confirmed `Status file
+  authenticated`, meaning the random port/password handshake and the
+  `--extraintf http` flags work exactly as implemented. Didn't reach a full
+  confirm/bump firing in that session (VLC hit an unrelated hardware-decoder
+  error on that machine, and the user's actual player turned out to be mpv,
+  not VLC — mpv support was added same-day as a result).
+- ⏳ **Acceptance owed** — mpv hasn't been live-tested at all yet, and VLC's
+  full flow (an actual 90%-threshold firing) hasn't either.
+- Not built: MPC-HC/BE (no CLI hook for its web interface) and anything for
+  6b's already-running-player case — both remain on the wall-clock heuristic.
 
 ---
 
