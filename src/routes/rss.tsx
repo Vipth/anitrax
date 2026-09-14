@@ -27,6 +27,7 @@ import {
   useSetRssPollEnabled,
 } from "@/lib/hooks";
 import { mediaTitle, relativeTime } from "@/lib/format";
+import { useUi } from "@/stores/ui";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
 import type {
@@ -58,7 +59,22 @@ function RssPage() {
   const check = useCheckFeeds();
   const poll = useRssPollEnabled();
   const setPoll = useSetRssPollEnabled();
+  const library = useLibrary();
   const [editing, setEditing] = React.useState<RssRule | "new" | null>(null);
+  const [preset, setPreset] = React.useState<MediaListEntry | null>(null);
+
+  // A right-click "Make RSS rule" elsewhere set this, then routed here —
+  // open New Rule pre-filled with that show, once, and clear the request.
+  const prefillMediaId = useUi((s) => s.rssRulePrefillMediaId);
+  React.useEffect(() => {
+    if (prefillMediaId == null || !library.data) return;
+    const entry = library.data.find((e) => e.media.id.id === prefillMediaId);
+    useUi.getState().setRssRulePrefillMediaId(null);
+    if (entry) {
+      setPreset(entry);
+      setEditing("new");
+    }
+  }, [prefillMediaId, library.data]);
 
   const qbReady = !!qb.data?.baseUrl?.trim();
 
@@ -180,7 +196,11 @@ function RssPage() {
       {editing && (
         <RuleDialog
           rule={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
+          presetEntry={editing === "new" ? preset : null}
+          onClose={() => {
+            setEditing(null);
+            setPreset(null);
+          }}
         />
       )}
     </div>
@@ -385,37 +405,58 @@ function emptyInput(): RssRuleInput {
   };
 }
 
+/** Fill in the show-specific fields from a library entry, leaving anything
+ * already typed alone. Shared by the in-dialog show picker and by opening
+ * the dialog pre-filled from a "Make RSS rule" context-menu action. */
+function prefillFromEntry(f: RssRuleInput, entry: MediaListEntry): RssRuleInput {
+  return {
+    ...f,
+    mediaId: entry.media.id.id,
+    service: entry.media.id.service,
+    name: f.name.trim() || mediaTitle(entry.media),
+    titleContains:
+      f.titleContains?.trim() ||
+      entry.media.title.romaji ||
+      entry.media.title.english ||
+      "",
+    episodeFrom: f.episodeFrom ?? (entry.progress > 0 ? entry.progress + 1 : null),
+  };
+}
+
 function RuleDialog({
   rule,
+  presetEntry,
   onClose,
 }: {
   rule: RssRule | null;
+  presetEntry?: MediaListEntry | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
   const feeds = useRssFeeds();
   const library = useLibrary();
-  const [form, setForm] = React.useState<RssRuleInput>(() =>
-    rule
-      ? {
-          name: rule.name,
-          enabled: rule.enabled,
-          feedId: rule.feedId,
-          service: rule.service,
-          mediaId: rule.mediaId,
-          titleContains: rule.titleContains,
-          excludeContains: rule.excludeContains,
-          releaseGroup: rule.releaseGroup,
-          minResolution: rule.minResolution,
-          season: rule.season,
-          episodeFrom: rule.episodeFrom,
-          episodeTo: rule.episodeTo,
-          destPath: rule.destPath,
-          category: rule.category,
-          paused: rule.paused,
-        }
-      : emptyInput(),
-  );
+  const [form, setForm] = React.useState<RssRuleInput>(() => {
+    if (rule) {
+      return {
+        name: rule.name,
+        enabled: rule.enabled,
+        feedId: rule.feedId,
+        service: rule.service,
+        mediaId: rule.mediaId,
+        titleContains: rule.titleContains,
+        excludeContains: rule.excludeContains,
+        releaseGroup: rule.releaseGroup,
+        minResolution: rule.minResolution,
+        season: rule.season,
+        episodeFrom: rule.episodeFrom,
+        episodeTo: rule.episodeTo,
+        destPath: rule.destPath,
+        category: rule.category,
+        paused: rule.paused,
+      };
+    }
+    return presetEntry ? prefillFromEntry(emptyInput(), presetEntry) : emptyInput();
+  });
   const [showPick, setShowPick] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
 
@@ -423,18 +464,7 @@ function RuleDialog({
     setForm((f) => ({ ...f, [k]: v }));
 
   const pickShow = (entry: MediaListEntry) => {
-    setForm((f) => ({
-      ...f,
-      mediaId: entry.media.id.id,
-      service: entry.media.id.service,
-      name: f.name.trim() || mediaTitle(entry.media),
-      titleContains:
-        f.titleContains?.trim() ||
-        entry.media.title.romaji ||
-        entry.media.title.english ||
-        "",
-      episodeFrom: f.episodeFrom ?? (entry.progress > 0 ? entry.progress + 1 : null),
-    }));
+    setForm((f) => prefillFromEntry(f, entry));
     setShowPick("");
   };
 

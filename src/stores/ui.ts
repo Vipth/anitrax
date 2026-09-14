@@ -37,6 +37,13 @@ interface UiState {
   setSeasonFormat: (v: MediaFormat | "ALL") => void;
   seasonGenre: string;
   setSeasonGenre: (v: string) => void;
+
+  /** One-shot handoff: a library entry's "Make RSS rule" context-menu action
+   * sets this, then navigates to /rss, which opens New Rule pre-filled with
+   * that show and clears it right after — not persisted navigation state
+   * like the fields above, just a single pending request. */
+  rssRulePrefillMediaId: number | null;
+  setRssRulePrefillMediaId: (v: number | null) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -64,4 +71,7 @@ export const useUi = create<UiState>((set) => ({
   setSeasonFormat: (seasonFormat) => set({ seasonFormat }),
   seasonGenre: "ALL",
   setSeasonGenre: (seasonGenre) => set({ seasonGenre }),
+
+  rssRulePrefillMediaId: null,
+  setRssRulePrefillMediaId: (rssRulePrefillMediaId) => set({ rssRulePrefillMediaId }),
 }));
