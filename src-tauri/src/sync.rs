@@ -413,6 +413,25 @@ pub async fn owned_media(state: &AppState) -> AppResult<Vec<OwnedMedia>> {
     repo::owned_media(&state.db).await
 }
 
+/// Distinct parent folders of every local file matched to `media_id` — for
+/// "Open local files" in the entry context menu. Folders, not files: a show
+/// might have several episodes (several files, one shared folder) or a
+/// season split across folders, and opening the file manager is more useful
+/// than launching every episode's video at once.
+pub async fn media_folders(state: &AppState, media_id: i64) -> AppResult<Vec<String>> {
+    let files = repo::library_files_for_media(&state.db, media_id).await?;
+    let mut dirs: Vec<String> = Vec::new();
+    for f in &files {
+        if let Some(parent) = Path::new(&f.path).parent() {
+            let p = parent.to_string_lossy().into_owned();
+            if !dirs.contains(&p) {
+                dirs.push(p);
+            }
+        }
+    }
+    Ok(dirs)
+}
+
 /// If playback detection is on and `episode` is genuinely the next unwatched
 /// one, build the watch session for it. Never tracks a rewatch or a batch
 /// jump-ahead — only ever `progress + 1`, matching what the Play button

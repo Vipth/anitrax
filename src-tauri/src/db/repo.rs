@@ -904,6 +904,12 @@ pub async fn get_library_file(db: &Db, id: i64) -> AppResult<Option<LibraryFile>
     Ok(row.as_ref().map(file_from_row))
 }
 
+pub async fn library_files_for_media(db: &Db, media_id: i64) -> AppResult<Vec<LibraryFile>> {
+    let sql = format!("{FILE_SELECT} WHERE lf.media_id = ?1 ORDER BY lf.parsed_episode");
+    let rows = sqlx::query(&sql).bind(media_id).fetch_all(db).await?;
+    Ok(rows.iter().map(file_from_row).collect())
+}
+
 /// Insert or refresh a scanned file. A manual match (`match_kind = 'manual'`) is
 /// never disturbed; other columns are always refreshed from the parse.
 pub async fn upsert_library_file(

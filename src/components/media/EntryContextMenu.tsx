@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ExternalLink, Pencil, Play, Rss, Trash2 } from "lucide-react";
+import { ExternalLink, FolderOpen, Pencil, Play, Rss, Trash2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ContextMenu,
@@ -47,6 +47,14 @@ export function EntryContextMenu({
     navigate({ to: "/rss" });
   };
 
+  const openFolder = async () => {
+    try {
+      await api.openMediaFolder(entry.media.id.id);
+    } catch (err) {
+      toast.error("Couldn't open folder", errorMessage(err));
+    }
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -57,6 +65,11 @@ export function EntryContextMenu({
         {playEp != null && (
           <ContextMenuItem onSelect={play}>
             <Play className="size-3.5" /> Play episode {playEp}
+          </ContextMenuItem>
+        )}
+        {owned && owned.length > 0 && (
+          <ContextMenuItem onSelect={openFolder}>
+            <FolderOpen className="size-3.5" /> Open local files
           </ContextMenuItem>
         )}
         <ContextMenuItem onSelect={makeRssRule}>
