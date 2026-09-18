@@ -157,6 +157,7 @@ pub fn run() {
             commands::scan_library,
             commands::library_files,
             commands::library_owned,
+            commands::open_media_folder,
             commands::play_episode,
             commands::link_library_files,
             commands::unlink_library_file,

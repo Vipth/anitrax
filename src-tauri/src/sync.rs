@@ -413,6 +413,25 @@ pub async fn owned_media(state: &AppState) -> AppResult<Vec<OwnedMedia>> {
     repo::owned_media(&state.db).await
 }
 
+/// Distinct parent folders of every local file matched to `media_id` — for
+/// "Open local files" in the entry context menu. Folders, not files: a show
+/// might have several episodes (several files, one shared folder) or a
+/// season split across folders, and opening the file manager is more useful
+/// than launching every episode's video at once.
+pub async fn media_folders(state: &AppState, media_id: i64) -> AppResult<Vec<String>> {
+    let files = repo::library_files_for_media(&state.db, media_id).await?;
+    let mut dirs: Vec<String> = Vec::new();
+    for f in &files {
+        if let Some(parent) = Path::new(&f.path).parent() {
+            let p = parent.to_string_lossy().into_owned();
+            if !dirs.contains(&p) {
+                dirs.push(p);
+            }
+        }
+    }
+    Ok(dirs)
+}
+
 /// If playback detection is on and `episode` is genuinely the next unwatched
 /// one, build the watch session for it. Never tracks a rewatch or a batch
 /// jump-ahead — only ever `progress + 1`, matching what the Play button
@@ -668,6 +687,12 @@ pub async fn rescan_paths(state: &AppState, roots: &[PathBuf]) -> AppResult<Scan
     scan_folders(state, &hit).await
 }
 
+/// How many upserted files share one transaction. Large enough to collapse a
+/// full-library scan's writer-lock reacquisitions from one-per-file down to a
+/// handful, small enough that a single chunk doesn't starve other writers
+/// (the RSS scheduler, launch sync) for long.
+const SCAN_BATCH_SIZE: usize = 200;
+
 async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<ScanReport> {
     let mut report = ScanReport {
         folders: folders.len(),
@@ -684,6 +709,7 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
         .unwrap_or_default();
 
         let mut present: Vec<String> = Vec::with_capacity(paths.len());
+        let mut batch: Vec<scanner::ScannedFile> = Vec::with_capacity(SCAN_BATCH_SIZE);
         for p in paths {
             present.push(p.to_string_lossy().into_owned());
             let scanned = tokio::task::spawn_blocking({
@@ -696,8 +722,15 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
             .flatten();
             if let Some(sf) = scanned {
                 report.files_seen += 1;
-                repo::upsert_library_file(&state.db, *folder_id, &sf).await?;
+                batch.push(sf);
+                if batch.len() >= SCAN_BATCH_SIZE {
+                    repo::upsert_library_files_bulk(&state.db, *folder_id, &batch).await?;
+                    batch.clear();
+                }
             }
+        }
+        if !batch.is_empty() {
+            repo::upsert_library_files_bulk(&state.db, *folder_id, &batch).await?;
         }
 
         report.files_removed +=

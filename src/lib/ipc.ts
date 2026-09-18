@@ -129,6 +129,9 @@ export const api = {
   playEpisode: (mediaId: number, episode: number, service?: ServiceKind) =>
     invoke<void>("play_episode", { mediaId, episode, service }),
 
+  openMediaFolder: (mediaId: number) =>
+    invoke<void>("open_media_folder", { mediaId }),
+
   linkLibraryFiles: (
     fileIds: number[],
     mediaId: number,

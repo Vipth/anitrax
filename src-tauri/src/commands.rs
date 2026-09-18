@@ -392,6 +392,23 @@ pub async fn library_owned(state: State<'_, AppState>) -> AppResult<Vec<OwnedMed
     sync::owned_media(&state).await
 }
 
+/// Open the folder(s) containing this show's local files in the OS file
+/// manager — the entry context menu's "Open local files".
+#[tauri::command]
+pub async fn open_media_folder(app: tauri::AppHandle, state: State<'_, AppState>, media_id: i64) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let dirs = sync::media_folders(&state, media_id).await?;
+    if dirs.is_empty() {
+        return Err(crate::error::AppError::other("No local files found for this show"));
+    }
+    for dir in dirs {
+        app.opener()
+            .open_path(dir, None::<&str>)
+            .map_err(|e| crate::error::AppError::other(format!("Couldn't open folder: {e}")))?;
+    }
+    Ok(())
+}
+
 /// Open the local file for `episode` of `media_id`. Normally hands it to the
 /// OS default player; if a live-position player is configured (M6c) and this
 /// episode is actually going to be tracked, launches it directly instead so
