@@ -687,6 +687,12 @@ pub async fn rescan_paths(state: &AppState, roots: &[PathBuf]) -> AppResult<Scan
     scan_folders(state, &hit).await
 }
 
+/// How many upserted files share one transaction. Large enough to collapse a
+/// full-library scan's writer-lock reacquisitions from one-per-file down to a
+/// handful, small enough that a single chunk doesn't starve other writers
+/// (the RSS scheduler, launch sync) for long.
+const SCAN_BATCH_SIZE: usize = 200;
+
 async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<ScanReport> {
     let mut report = ScanReport {
         folders: folders.len(),
@@ -703,6 +709,7 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
         .unwrap_or_default();
 
         let mut present: Vec<String> = Vec::with_capacity(paths.len());
+        let mut batch: Vec<scanner::ScannedFile> = Vec::with_capacity(SCAN_BATCH_SIZE);
         for p in paths {
             present.push(p.to_string_lossy().into_owned());
             let scanned = tokio::task::spawn_blocking({
@@ -715,8 +722,15 @@ async fn scan_folders(state: &AppState, folders: &[(i64, String)]) -> AppResult<
             .flatten();
             if let Some(sf) = scanned {
                 report.files_seen += 1;
-                repo::upsert_library_file(&state.db, *folder_id, &sf).await?;
+                batch.push(sf);
+                if batch.len() >= SCAN_BATCH_SIZE {
+                    repo::upsert_library_files_bulk(&state.db, *folder_id, &batch).await?;
+                    batch.clear();
+                }
             }
+        }
+        if !batch.is_empty() {
+            repo::upsert_library_files_bulk(&state.db, *folder_id, &batch).await?;
         }
 
         report.files_removed +=
