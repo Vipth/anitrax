@@ -154,12 +154,12 @@ of the `governor` crate; kept native window decorations (no custom titlebar yet)
 
 ---
 
-## M6 — Playback detection ("now watching" → auto-progress)
+## ✅ M6 — Playback detection ("now watching" → auto-progress)  *(done)*
 
 Reversing the original "no auto-detection" call (2026-09-09) — this is what
 makes AniTrax a full Taiga replacement. Built in phases, each useful on its own:
 
-**6a — detect what AniTrax launched.** *(built 2026-09-13, acceptance owed)*
+**6a — detect what AniTrax launched.** *(built 2026-09-13, accepted 2026-09-22)*
 When you hit *Play* we already know the show, episode and file. Track the
 player process we spawned (plus mpv's IPC socket when it's mpv) and, a fixed
 delay after playback starts, offer to bump progress — a toast by default,
@@ -232,10 +232,8 @@ silent if you opt in. Zero window-scraping. Reuses the push pipeline.
 - ✅ Never touches AniList beyond the existing debounced progress push.
 - ✅ 5 unit tests (threshold math, one-shot tick reporting, stale-session
   pruning, `stop_up_to` range clearing).
-- ⏳ **Acceptance owed** — needs a real watch: confirm the toast/notification
-  fires around the expected time for an on-disk episode, "Bump progress"
-  applies correctly (including auto-completing a finale), and silent mode
-  bumps with no prompt.
+- ✅ **Acceptance passed** (2026-09-22) — several days of real daily use, zero
+  issues reported.
 - Explicitly **not** in this pass: real player-process tracking (exit
   detection) and mpv IPC — this heuristic is wall-clock-since-Play only, so
   walking away for 2 minutes and coming back still counts as "watched." Any
@@ -281,7 +279,7 @@ default — opt-in on top of 6a. Player list + per-player enable in Settings.
   limitation — no real position, just "the window's been up a while."
 
 **6c — live position via VLC or mpv.** *(built 2026-09-13, mpv accepted
-2026-09-14, VLC acceptance owed)*
+2026-09-14, VLC accepted 2026-09-22)*
 Scoped down from the original three-protocol plan (mpv IPC + VLC HTTP +
 MPC-HC web interface) after weighing it against "this should stay easy for
 someone else to pick up" — an *already-running* player (6b's case) needs the
@@ -343,13 +341,7 @@ untouched — still the wall-clock heuristic.
   `Focused(true/false)` churn followed by a legitimate `CloseRequested` only
   when a button was actually clicked. Also bumped the popup's auto-dismiss
   from 30s to 90s per feedback that 30s was too easy to miss.
-- ⏳ **VLC acceptance still owed** — its launch/auth mechanism was confirmed
-  working live on 2026-09-13 (`Status file authenticated` in VLC's own log),
-  but a full 90%-threshold firing hasn't been observed for VLC specifically
-  (that session hit an unrelated VLC hardware-decoder error before reaching
-  it). Given mpv's confirm-popup path is now proven end-to-end and both
-  players share the same `fire_ready`/popup code downstream of their
-  pollers, this is a low-risk gap — just hasn't been directly observed yet.
+- ✅ **VLC acceptance passed** (2026-09-22).
 - Not built: MPC-HC/BE (no CLI hook for its web interface) and anything for
   6b's already-running-player case — both remain on the wall-clock heuristic.
 
