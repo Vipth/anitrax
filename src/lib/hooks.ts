@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   useMutation,
   useQuery,
@@ -8,6 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "./ipc";
 import { qk } from "./query";
 import { toast } from "@/stores/toast";
+import { useUpdateStore } from "@/stores/update";
 import type { EntryPatch, MediaListEntry } from "./types";
 
 export function useLibrary() {
@@ -16,6 +17,20 @@ export function useLibrary() {
     queryFn: () => api.getLibrary(),
     staleTime: 30 * 60_000,
   });
+}
+
+/** One check per app launch — never a background poller (mirrors the AniList
+ * gateway's own restraint). Only fires once settings confirm the "check
+ * automatically on launch" toggle is on. */
+export function useUpdateCheck() {
+  const { data: settings } = useSettings();
+  const checkNow = useUpdateStore((s) => s.checkNow);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !settings) return;
+    done.current = true;
+    if (settings.autoUpdateCheck) checkNow();
+  }, [settings, checkNow]);
 }
 
 export function useSettings() {

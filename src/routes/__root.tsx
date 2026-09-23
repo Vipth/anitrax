@@ -8,16 +8,24 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
-import { CloudOff, Play } from "lucide-react";
+import { CloudOff, Download, Play, X } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { KeyboardHelp } from "@/components/KeyboardHelp";
-import { useBackendEvents, useBudget, useNowWatching } from "@/lib/hooks";
+import { Button } from "@/components/ui/button";
+import {
+  useBackendEvents,
+  useBudget,
+  useNowWatching,
+  useSettings,
+  useUpdateCheck,
+} from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
 import { toast } from "@/stores/toast";
 import { errorMessage } from "@/lib/types";
 import { usePrefs, applyTheme } from "@/stores/prefs";
 import { useUi } from "@/stores/ui";
+import { useUpdateStore } from "@/stores/update";
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -25,6 +33,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   useBackendEvents();
+  useUpdateCheck();
   const theme = usePrefs((s) => s.theme);
   const navigate = useNavigate();
   const helpOpen = useUi((s) => s.helpOpen);
@@ -154,6 +163,7 @@ function RootLayout() {
           <div className="absolute inset-x-0 top-0 z-50 h-0.5 animate-pulse bg-primary" />
         )}
         <OutageBanner />
+        <UpdateBanner />
         <NowWatchingStrip />
         <Outlet />
       </main>
@@ -174,6 +184,51 @@ function OutageBanner() {
         cached library still works, and any edits you make will sync
         automatically once it&apos;s back.
       </span>
+    </div>
+  );
+}
+
+function UpdateBanner() {
+  const { data: settings } = useSettings();
+  const { update, downloading, progress, installNow, dismiss, skip } = useUpdateStore();
+  if (!update || update.version === settings?.skippedUpdateVersion) return null;
+
+  const notes = update.body?.split("\n").find((l) => l.trim().length > 0);
+
+  return (
+    <div className="flex items-center gap-3 border-b border-primary/40 bg-primary/10 px-6 py-2 text-xs">
+      <Download className="size-3.5 shrink-0 text-primary" />
+      <span className="min-w-0 flex-1 truncate">
+        <strong className="font-semibold">v{update.version}</strong> is ready
+        {notes ? ` — ${notes}` : ""}
+      </span>
+      {downloading ? (
+        <span className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-border">
+          <span
+            className="block h-full bg-primary transition-[width]"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </span>
+      ) : (
+        <>
+          <Button size="sm" onClick={installNow}>
+            Install &amp; restart
+          </Button>
+          <button
+            onClick={skip}
+            className="shrink-0 font-medium text-muted-foreground hover:text-foreground"
+          >
+            Skip this version
+          </button>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss"
+            className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

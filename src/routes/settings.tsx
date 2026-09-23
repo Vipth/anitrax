@@ -26,6 +26,7 @@ import {
 } from "@/lib/hooks";
 import { relativeTime } from "@/lib/format";
 import { toast } from "@/stores/toast";
+import { useUpdateStore } from "@/stores/update";
 import {
   errorMessage,
   type AppSettings,
@@ -92,6 +93,10 @@ function SettingsPage() {
 
       <Section title="Startup & window">
         <StartupSettings />
+      </Section>
+
+      <Section title="Software update">
+        <UpdateSettings />
       </Section>
 
       <Section title="Playback detection">
@@ -747,6 +752,56 @@ function PlayerIntegrationSetting() {
         )}
       </div>
     </SettingRow>
+  );
+}
+
+function UpdateSettings() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const checking = useUpdateStore((s) => s.checking);
+  const checkNow = useUpdateStore((s) => s.checkNow);
+  const autoCheck = settings?.autoUpdateCheck ?? true;
+
+  const toggle = useMutation({
+    mutationFn: (v: boolean) => api.setAutoUpdateCheck(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, autoUpdateCheck: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  const runCheck = async () => {
+    const update = await checkNow();
+    qc.invalidateQueries({ queryKey: qk.settings });
+    if (!update) toast.info("You're up to date", `AniTrax v${settings?.appVersion}`);
+  };
+
+  return (
+    <div className="space-y-4">
+      <SettingRow
+        label={`Version ${settings?.appVersion ?? ""}`}
+        hint={`Last checked ${relativeTime(settings?.lastUpdateCheck)}`}
+      >
+        <Button variant="secondary" size="sm" onClick={runCheck} disabled={checking}>
+          <RefreshCw className={checking ? "size-3.5 animate-spin" : "size-3.5"} />
+          Check for updates
+        </Button>
+      </SettingRow>
+      <SettingRow label="Check automatically on launch">
+        <Switch
+          checked={autoCheck}
+          onCheckedChange={(v) => toggle.mutate(v)}
+          aria-label="Check automatically on launch"
+        />
+      </SettingRow>
+    </div>
   );
 }
 

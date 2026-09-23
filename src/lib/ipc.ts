@@ -186,4 +186,13 @@ export const api = {
 
   setRssPollEnabled: (enabled: boolean) =>
     invoke<void>("set_rss_poll_enabled", { enabled }),
+
+  // Auto-update (M8)
+  setAutoUpdateCheck: (enabled: boolean) =>
+    invoke<void>("set_auto_update_check", { enabled }),
+
+  setSkippedUpdateVersion: (version: string | null) =>
+    invoke<void>("set_skipped_update_version", { version }),
+
+  markUpdateChecked: () => invoke<void>("mark_update_checked"),
 };

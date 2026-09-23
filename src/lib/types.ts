@@ -123,6 +123,10 @@ export interface AppSettings {
   monitoredPlayers: string[];
   playerIntegrationKind: PlayerIntegrationKind | null;
   playerIntegrationPath: string | null;
+  appVersion: string;
+  autoUpdateCheck: boolean;
+  lastUpdateCheck: string | null;
+  skippedUpdateVersion: string | null;
 }
 
 export interface KnownPlayer {

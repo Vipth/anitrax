@@ -391,27 +391,48 @@ app resident). Small, mostly plumbing.
 
 ---
 
-## M8 — Auto-update
+## M8 — Auto-update *(built 2026-09-22, acceptance owed)*
 
 So a build ships itself instead of the user re-downloading an installer. Also
 forces the cross-platform build story to exist.
 
-- **`tauri-plugin-updater` + `tauri-plugin-process`** — checks a `latest.json`
-  manifest on GitHub Releases once at launch, plus a manual "Check for updates"
-  in Settings. One check, not a background poller — same restraint as the AniList
-  gateway.
-- **Signed updates** — Ed25519 keypair via `tauri signer generate`; public key in
-  `tauri.conf.json`, private key + password as CI secrets. An unsigned or
-  tampered bundle is refused.
-- **GitHub Actions release workflow** — `tauri-apps/tauri-action` on a version
-  tag builds Windows / macOS / Linux bundles and uploads them plus the generated
-  `latest.json` to the release. This is the cross-platform build pipeline we've
-  been deferring.
-- **Frontend** — unobtrusive "v0.2.0 is ready" prompt with release notes,
-  download with a progress bar, install + relaunch on confirm. Never forced,
-  dismissible, "skip this version".
-- **Settings** — current version, last-checked time, "check automatically on
-  launch" toggle (default on), stable channel only for now.
+- ✅ **`tauri-plugin-updater` + `tauri-plugin-process`** — `check()` runs once
+  per launch (only when "check automatically on launch" is on) plus a manual
+  "Check for updates" button in Settings; called directly from the frontend
+  via the plugins' own JS API (`src/stores/update.ts`), same convention as
+  `@tauri-apps/plugin-dialog`/`-opener` being called straight from
+  `settings.tsx` rather than wrapped in a custom command. One check, not a
+  background poller — same restraint as the AniList gateway.
+- ✅ **Signed updates** — Ed25519 keypair via `tauri signer generate`
+  (generated 2026-09-22, private key kept outside the repo). Public key in
+  `tauri.conf.json`'s `plugins.updater.pubkey`; private key + password live
+  only as `Vipth/anitrax` GitHub Actions secrets
+  (`TAURI_SIGNING_PRIVATE_KEY`/`_PASSWORD`). `bundle.createUpdaterArtifacts`
+  turned on so the build actually emits signed update artifacts. An unsigned
+  or tampered bundle is refused by the updater plugin itself.
+- ✅ **GitHub Actions release workflow** — `.github/workflows/release.yml`:
+  a `vX.Y.Z` tag push runs `tauri-apps/tauri-action` across
+  `windows-latest`/`macos-latest`/`ubuntu-22.04`, publishing a **draft**
+  release (bundles + generated `latest.json`) — nothing reaches an installed
+  copy until the draft is reviewed and manually published. This is the
+  cross-platform build pipeline we'd been deferring. Full checklist:
+  `docs/releasing.md`.
+- ✅ **Frontend** — `UpdateBanner` (`src/routes/__root.tsx`, alongside the
+  existing `OutageBanner`/`NowWatchingStrip`) shows an unobtrusive "vX.Y.Z is
+  ready" prompt with the first line of release notes, "Install & restart"
+  (download progress bar → `downloadAndInstall` → `relaunch`), "Skip this
+  version" (persisted — `skipped_update_version` setting), and a plain
+  dismiss (×, in-memory only, reappears next check). Never forced.
+- ✅ **Settings** — new "Software update" section: current version (read
+  from `app.package_info()`, never hardcoded), last-checked time, "Check for
+  updates" button, "Check automatically on launch" toggle (default on,
+  `auto_update_check` setting). Stable channel only — no channel picker yet.
+- ⏳ **Acceptance owed** — the full loop (a real installed build detects a
+  newer tagged, published release at launch; prompt fires with real notes;
+  download/install/relaunch lands on the new version; an unsigned/tampered
+  bundle is rejected) can't be exercised until a real `vX.Y.Z` tag has gone
+  through the pipeline and its draft been published. See
+  `docs/releasing.md`.
 
 ---
 

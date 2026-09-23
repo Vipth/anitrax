@@ -32,6 +32,11 @@ pub struct AppSettings {
     /// M6c — set together, or both `None` (no live-position player configured).
     pub player_integration_kind: Option<String>,
     pub player_integration_path: Option<String>,
+    /// M8 — auto-update.
+    pub app_version: String,
+    pub auto_update_check: bool,
+    pub last_update_check: Option<String>,
+    pub skipped_update_version: Option<String>,
 }
 
 #[tauri::command]
@@ -71,6 +76,15 @@ pub async fn get_settings(
         monitored_players: repo::enabled_players(&state.db).await?,
         player_integration_kind: player_integration.as_ref().map(|p| p.kind.as_str().to_string()),
         player_integration_path: player_integration.map(|p| p.exe.display().to_string()),
+        app_version: app.package_info().version.to_string(),
+        auto_update_check: repo::get_bool_setting(&state.db, sync::AUTO_UPDATE_CHECK_KEY, true)
+            .await?,
+        last_update_check: repo::get_setting(&state.db, sync::LAST_UPDATE_CHECK_KEY)
+            .await?
+            .and_then(|v| v.as_str().map(str::to_owned)),
+        skipped_update_version: repo::get_setting(&state.db, sync::SKIPPED_UPDATE_VERSION_KEY)
+            .await?
+            .and_then(|v| v.as_str().map(str::to_owned)),
     })
 }
 
@@ -185,6 +199,34 @@ pub async fn set_player_integration(
     repo::set_setting(&state.db, sync::PLAYER_INTEGRATION_PATH_KEY, &serde_json::json!(path_str))
         .await?;
     Ok(())
+}
+
+/// M8 — auto-update.
+#[tauri::command]
+pub async fn set_auto_update_check(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::AUTO_UPDATE_CHECK_KEY, enabled).await
+}
+
+#[tauri::command]
+pub async fn set_skipped_update_version(
+    state: State<'_, AppState>,
+    version: Option<String>,
+) -> AppResult<()> {
+    repo::set_setting(&state.db, sync::SKIPPED_UPDATE_VERSION_KEY, &serde_json::json!(version))
+        .await
+}
+
+/// Stamped after any check — manual or the once-per-launch automatic one —
+/// so Settings can show "last checked" without the frontend needing to track
+/// its own clock.
+#[tauri::command]
+pub async fn mark_update_checked(state: State<'_, AppState>) -> AppResult<()> {
+    repo::set_setting(
+        &state.db,
+        sync::LAST_UPDATE_CHECK_KEY,
+        &serde_json::json!(chrono::Utc::now().to_rfc3339()),
+    )
+    .await
 }
 
 #[tauri::command]

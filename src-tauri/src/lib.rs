@@ -122,6 +122,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // Always registers the login-launch command with `--minimized`; whether
         // that actually starts hidden is decided at runtime by the
         // `start_minimized` setting (see the show/hide logic below) — so
@@ -189,6 +191,9 @@ pub fn run() {
             commands::set_playback_window_detect,
             commands::set_monitored_players,
             commands::set_player_integration,
+            commands::set_auto_update_check,
+            commands::set_skipped_update_version,
+            commands::mark_update_checked,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

@@ -122,6 +122,11 @@ pub const WINDOW_DETECT_POLL_EVERY: Duration = Duration::from_secs(10);
 /// OS opener + wall-clock heuristic.
 pub const PLAYER_INTEGRATION_KIND_KEY: &str = "player_integration_kind";
 pub const PLAYER_INTEGRATION_PATH_KEY: &str = "player_integration_path";
+/// M8 — auto-update. One check per launch (never a background poller, same
+/// restraint as the AniList gateway), plus a manual "Check for updates".
+pub const AUTO_UPDATE_CHECK_KEY: &str = "auto_update_check";
+pub const LAST_UPDATE_CHECK_KEY: &str = "last_update_check";
+pub const SKIPPED_UPDATE_VERSION_KEY: &str = "skipped_update_version";
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".

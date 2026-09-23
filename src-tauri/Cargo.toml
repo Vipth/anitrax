@@ -28,6 +28,8 @@ tauri-plugin-deep-link = "2.4.10"
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-notification = "2.4.0"
 tauri-plugin-single-instance = "2.4.4"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 tokio = { version = "1.53.1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "cookies", "multipart"] }
 rss = { version = "2", default-features = false }
