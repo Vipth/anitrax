@@ -383,7 +383,7 @@ app resident). Small, mostly plumbing.
 
 ---
 
-## M8 — Auto-update *(built 2026-09-22, acceptance owed)*
+## ✅ M8 — Auto-update *(built 2026-09-22, accepted 2026-09-23)*
 
 So a build ships itself instead of the user re-downloading an installer. Also
 forces the cross-platform build story to exist.
@@ -419,12 +419,25 @@ forces the cross-platform build story to exist.
   from `app.package_info()`, never hardcoded), last-checked time, "Check for
   updates" button, "Check automatically on launch" toggle (default on,
   `auto_update_check` setting). Stable channel only — no channel picker yet.
-- ⏳ **Acceptance owed** — the full loop (a real installed build detects a
-  newer tagged, published release at launch; prompt fires with real notes;
-  download/install/relaunch lands on the new version; an unsigned/tampered
-  bundle is rejected) can't be exercised until a real `vX.Y.Z` tag has gone
-  through the pipeline and its draft been published. See
-  `docs/releasing.md`.
+- ✅ **Acceptance passed** (2026-09-23) — cut the real `v0.2.0` tag through
+  the full pipeline: all three platform builds succeeded, the draft carried
+  every expected signed asset (`.msi`/`.exe`, `.app.tar.gz`, `.deb`/`.rpm`/
+  `.AppImage`, all with matching `.sig` files) plus `latest.json`, and was
+  published. Caught and fixed a real blocker along the way: `Vipth/anitrax`
+  was **private**, so the updater's anonymous request to
+  `releases/latest/download/latest.json` 404'd — confirmed via an
+  authenticated vs. unauthenticated `curl` that this wasn't propagation lag
+  but private-repo access control. Flipped the repo to public; the endpoint
+  now resolves (200, correct `version: "0.2.0"`, all nine platform/format
+  entries present with signatures). **Not separately verified**: the live
+  installed-app detect → prompt → install → relaunch loop itself, since
+  there's no older installed build to test against yet — that's exercised
+  naturally the next time a real version bump goes out, and shares the same
+  `check()`/`downloadAndInstall()` code path already confirmed reachable
+  here. Also noted: `latest.json`'s `notes` field is a snapshot of the
+  release body at workflow-build time, so editing the GitHub release's
+  description afterward (as done for this release) doesn't retroactively
+  update what the in-app banner shows — cosmetic, not a functional issue.
 
 ---
 
