@@ -910,10 +910,29 @@ pub async fn library_files_for_media(db: &Db, media_id: i64) -> AppResult<Vec<Li
     Ok(rows.iter().map(file_from_row).collect())
 }
 
-/// Insert or refresh a scanned file. A manual match (`match_kind = 'manual'`) is
-/// never disturbed; other columns are always refreshed from the parse.
-pub async fn upsert_library_file(
+/// Insert or refresh a batch of scanned files for one folder, all inside a
+/// single transaction. A scan can touch thousands of rows; committing once per
+/// file reacquires SQLite's single writer lock on every row, which stalls
+/// concurrent writers like the RSS scheduler and launch sync for seconds at a
+/// time. Batching keeps the lock held for one chunk instead of one row.
+///
+/// A manual match (`match_kind = 'manual'`) is never disturbed; other columns
+/// are always refreshed from the parse.
+pub async fn upsert_library_files_bulk(
     db: &Db,
+    folder_id: i64,
+    files: &[ScannedFile],
+) -> AppResult<()> {
+    let mut tx = db.begin().await?;
+    for f in files {
+        upsert_library_file_tx(&mut tx, folder_id, f).await?;
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn upsert_library_file_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     folder_id: i64,
     f: &ScannedFile,
 ) -> AppResult<()> {
@@ -951,7 +970,7 @@ pub async fn upsert_library_file(
     .bind(&f.resolution)
     .bind(&f.release_group)
     .bind(now())
-    .execute(db)
+    .execute(&mut **tx)
     .await?;
     Ok(())
 }
