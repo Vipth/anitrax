@@ -32,9 +32,6 @@ import type {
 export const api = {
   getSettings: () => invoke<AppSettings>("get_settings"),
 
-  setAnilistClientId: (clientId: string) =>
-    invoke<void>("set_anilist_client_id", { clientId }),
-
   setSyncOnStartup: (enabled: boolean) =>
     invoke<void>("set_sync_on_startup", { enabled }),
 
@@ -67,9 +64,6 @@ export const api = {
     invoke<void>("set_player_integration", { kind, path }),
 
   anilistLoginUrl: () => invoke<string>("anilist_login_url"),
-
-  anilistCompleteLogin: (redirectUrl: string) =>
-    invoke<Account>("anilist_complete_login", { redirectUrl }),
 
   anilistConnectToken: (token: string) =>
     invoke<Account>("anilist_connect_token", { token }),

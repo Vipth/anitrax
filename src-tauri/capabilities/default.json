@@ -10,7 +10,6 @@
     "opener:allow-open-url",
     "dialog:default",
     "notification:default",
-    "deep-link:default",
     "updater:default",
     "process:allow-restart"
   ]

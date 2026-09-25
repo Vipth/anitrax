@@ -119,8 +119,6 @@ export type PlaybackMode = "confirm" | "silent";
 export type PlayerIntegrationKind = "vlc" | "mpv";
 
 export interface AppSettings {
-  anilistClientId: string | null;
-  anilistRedirect: string;
   accounts: Account[];
   syncOnStartup: boolean;
   closeToTray: boolean;

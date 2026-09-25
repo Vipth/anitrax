@@ -121,7 +121,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         // Always registers the login-launch command with `--minimized`; whether
@@ -134,10 +133,8 @@ pub fn run() {
         ))
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
-            commands::set_anilist_client_id,
             commands::set_sync_on_startup,
             commands::anilist_login_url,
-            commands::anilist_complete_login,
             commands::anilist_connect_token,
             commands::list_accounts,
             commands::disconnect_account,
@@ -295,49 +292,6 @@ pub fn run() {
                 if !(launched_minimized && start_minimized) {
                     show_main_window(&handle);
                 }
-            }
-
-            #[cfg(desktop)]
-            {
-                use tauri_plugin_deep_link::DeepLinkExt;
-                // Best-effort: makes the custom scheme work in dev on Windows/Linux.
-                let _ = app.deep_link().register_all();
-
-                let dl_handle = handle.clone();
-                let dl_state = state.clone();
-                app.deep_link().on_open_url(move |event| {
-                    for url in event.urls() {
-                        let url = url.to_string();
-                        if !url.starts_with("anitrax://oauth/anilist") {
-                            continue;
-                        }
-                        let h = dl_handle.clone();
-                        let s = dl_state.clone();
-                        match auth::parse_anilist_redirect(&url) {
-                            Some(token) => {
-                                tauri::async_runtime::spawn(async move {
-                                    match sync::connect_anilist(&s, &token).await {
-                                        Ok(_) => {
-                                            let _ = h.emit("auth-changed", "anilist");
-                                            let _ = h.emit("entries-updated", ());
-                                        }
-                                        Err(e) => {
-                                            let _ = h.emit("auth-error", &e);
-                                        }
-                                    }
-                                });
-                            }
-                            None => {
-                                let _ = h.emit(
-                                    "auth-error",
-                                    &error::AppError::other(
-                                        "The AniList redirect didn't contain an access token.",
-                                    ),
-                                );
-                            }
-                        }
-                    }
-                });
             }
 
             // Background push worker: debounced flush of dirty rows, then retry

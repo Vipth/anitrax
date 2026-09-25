@@ -24,7 +24,6 @@ tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono", "json"] }
-tauri-plugin-deep-link = "2.4.10"
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-notification = "2.4.0"
 tauri-plugin-single-instance = "2.4.4"

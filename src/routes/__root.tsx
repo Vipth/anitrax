@@ -7,7 +7,6 @@ import {
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import { listen } from "@tauri-apps/api/event";
 import { CloudOff, Download, Play, X } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,8 +20,6 @@ import {
   useUpdateCheck,
 } from "@/lib/hooks";
 import { useHotkeys } from "@/lib/hotkeys";
-import { toast } from "@/stores/toast";
-import { errorMessage } from "@/lib/types";
 import { usePrefs, applyTheme } from "@/stores/prefs";
 import { useUi } from "@/stores/ui";
 import { useUpdateStore } from "@/stores/update";
@@ -140,20 +137,6 @@ function RootLayout() {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, [theme]);
-
-  useEffect(() => {
-    const unlisten = [
-      listen<string>("auth-changed", () =>
-        toast.success("Account connected", "Your list is syncing now."),
-      ),
-      listen<unknown>("auth-error", (e) =>
-        toast.error("Sign-in failed", errorMessage(e.payload)),
-      ),
-    ];
-    return () => {
-      unlisten.forEach((p) => p.then((f) => f()));
-    };
-  }, []);
 
   // The M6a playback-confirm popup is a separate, tiny always-on-top window
   // (see show_playback_popup in lib.rs) — it gets none of the normal chrome.

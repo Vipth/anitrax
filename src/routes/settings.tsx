@@ -2,7 +2,6 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ExternalLink,
   FolderPlus,
   LogOut,
   RefreshCw,
@@ -78,7 +77,7 @@ function SettingsPage() {
             </Button>
           </div>
         ) : (
-          <ConnectFlow clientId={settings?.anilistClientId ?? ""} redirect={settings?.anilistRedirect ?? ""} />
+          <ConnectFlow />
         )}
       </Section>
 
@@ -136,28 +135,9 @@ function SettingsPage() {
   );
 }
 
-const PIN_REDIRECT = "https://anilist.co/api/v2/oauth/pin";
-
-function ConnectFlow({
-  clientId,
-  redirect,
-}: {
-  clientId: string;
-  redirect: string;
-}) {
+function ConnectFlow() {
   const qc = useQueryClient();
-  const [id, setId] = React.useState(clientId);
   const [token, setToken] = React.useState("");
-
-  React.useEffect(() => setId(clientId), [clientId]);
-
-  const saveId = useMutation({
-    mutationFn: (v: string) => api.setAnilistClientId(v),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.settings });
-      toast.success("Saved client ID");
-    },
-  });
 
   const startLogin = useMutation({
     mutationFn: async () => {
@@ -178,107 +158,37 @@ function ConnectFlow({
   });
 
   return (
-    <div className="space-y-4">
-      <ol className="space-y-4 text-sm">
-        <li className="space-y-1.5">
-          <p className="font-medium">1. Create an API client</p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Open{" "}
-            <button
-              className="inline-flex items-center gap-1 text-primary hover:underline"
-              onClick={() => openUrl("https://anilist.co/settings/developer")}
-            >
-              anilist.co/settings/developer <ExternalLink className="size-3" />
-            </button>{" "}
-            → “Create New Client”. Set its <strong>Redirect URL</strong> to one of
-            these:
-          </p>
-          <div className="space-y-1.5">
-            <RedirectOption
-              url={PIN_REDIRECT}
-              label="Easiest — AniList shows you a token to paste below"
-            />
-            <RedirectOption
-              url={redirect || "anitrax://oauth/anilist"}
-              label="Seamless — the app captures sign-in automatically"
-            />
-          </div>
-        </li>
+    <ol className="space-y-4 text-sm">
+      <li className="space-y-1.5">
+        <p className="font-medium">1. Sign in</p>
+        <Button disabled={startLogin.isPending} onClick={() => startLogin.mutate()}>
+          Sign in with AniList
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Opens your browser. After you approve, AniList shows you an access
+          token on the page.
+        </p>
+      </li>
 
-        <li className="space-y-1.5">
-          <p className="font-medium">2. Paste the client ID</p>
-          <div className="flex gap-2">
-            <Input
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder="e.g. 12345"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!id.trim() || saveId.isPending}
-              onClick={() => saveId.mutate(id.trim())}
-            >
-              Save
-            </Button>
-          </div>
-        </li>
-
-        <li className="space-y-1.5">
-          <p className="font-medium">3. Authorize</p>
+      <li className="space-y-1.5">
+        <p className="font-medium">2. Paste the token</p>
+        <div className="flex gap-2">
+          <Input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Access token from AniList"
+            type="password"
+          />
           <Button
             size="sm"
-            disabled={!clientId || startLogin.isPending}
-            onClick={() => startLogin.mutate()}
+            disabled={!token.trim() || connectToken.isPending}
+            onClick={() => connectToken.mutate(token.trim())}
           >
-            Sign in with AniList
+            Connect
           </Button>
-          <p className="text-xs text-muted-foreground">
-            {!clientId
-              ? "Save your client ID first."
-              : "Approve in your browser. With the custom-scheme redirect the app connects itself; with the pin redirect, copy the token AniList shows you."}
-          </p>
-        </li>
-
-        <li className="space-y-1.5">
-          <p className="font-medium">4. Paste the token (pin redirect only)</p>
-          <div className="flex gap-2">
-            <Input
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Access token from AniList"
-              type="password"
-            />
-            <Button
-              size="sm"
-              disabled={!token.trim() || connectToken.isPending}
-              onClick={() => connectToken.mutate(token.trim())}
-            >
-              Connect
-            </Button>
-          </div>
-        </li>
-      </ol>
-    </div>
-  );
-}
-
-function RedirectOption({ url, label }: { url: string; label: string }) {
-  const [copied, setCopied] = React.useState(false);
-  return (
-    <button
-      onClick={async () => {
-        await navigator.clipboard.writeText(url).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      className="block w-full rounded-md border border-border bg-surface px-2 py-1.5 text-left transition-colors hover:border-primary"
-    >
-      <code className="text-xs">{url}</code>
-      <span className="mt-0.5 block text-[11px] text-muted-foreground">
-        {copied ? "Copied!" : label}
-      </span>
-    </button>
+        </div>
+      </li>
+    </ol>
   );
 }
 

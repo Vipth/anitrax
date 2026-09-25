@@ -18,8 +18,6 @@ use crate::tracker::model::*;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
-    pub anilist_client_id: Option<String>,
-    pub anilist_redirect: String,
     pub accounts: Vec<Account>,
     pub sync_on_startup: bool,
     pub close_to_tray: bool,
@@ -47,16 +45,11 @@ pub async fn get_settings(
     state: State<'_, AppState>,
 ) -> AppResult<AppSettings> {
     use tauri_plugin_autostart::ManagerExt;
-    let anilist_client_id = repo::get_setting(&state.db, "anilist_client_id")
-        .await?
-        .and_then(|v| v.as_str().map(str::to_owned));
     // The OS registry entry is the source of truth — the user could've removed
     // it outside the app — so read it live rather than trusting our own DB copy.
     let start_on_login = app.autolaunch().is_enabled().unwrap_or(false);
     let player_integration = sync::player_integration(&state).await?;
     Ok(AppSettings {
-        anilist_client_id,
-        anilist_redirect: auth::ANILIST_REDIRECT.to_string(),
         accounts: repo::list_accounts(&state.db).await?,
         sync_on_startup: repo::get_bool_setting(&state.db, sync::SYNC_ON_STARTUP_KEY, true).await?,
         close_to_tray: state.is_close_to_tray(),
@@ -233,46 +226,15 @@ pub async fn mark_update_checked(state: State<'_, AppState>) -> AppResult<()> {
     .await
 }
 
-#[tauri::command]
-pub async fn set_anilist_client_id(state: State<'_, AppState>, client_id: String) -> AppResult<()> {
-    let trimmed = client_id.trim();
-    repo::set_setting(
-        &state.db,
-        "anilist_client_id",
-        &serde_json::Value::String(trimmed.to_string()),
-    )
-    .await
-}
-
 /// Returns the URL the frontend should open in the system browser to start login.
 #[tauri::command]
-pub async fn anilist_login_url(state: State<'_, AppState>) -> AppResult<String> {
-    let client_id = repo::get_setting(&state.db, "anilist_client_id")
-        .await?
-        .and_then(|v| v.as_str().map(str::to_owned))
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
-            crate::error::AppError::other(
-                "Set your AniList client ID in Settings first (anilist.co/settings/developer).",
-            )
-        })?;
-    Ok(auth::anilist_authorize_url(&client_id))
+pub fn anilist_login_url() -> String {
+    auth::anilist_authorize_url(auth::ANILIST_CLIENT_ID)
 }
 
-/// Complete login from a redirect URL (used as a manual fallback if the deep
-/// link doesn't fire, e.g. during development).
-#[tauri::command]
-pub async fn anilist_complete_login(
-    state: State<'_, AppState>,
-    redirect_url: String,
-) -> AppResult<Account> {
-    let token = auth::parse_anilist_redirect(&redirect_url)
-        .ok_or_else(|| crate::error::AppError::other("no access_token in that URL"))?;
-    sync::connect_anilist(&state, &token).await
-}
-
-/// Complete login from a raw access token (AniList lets developers mint one
-/// directly on the developer settings page — handy for first-run testing).
+/// Complete login from the raw access token AniList shows on its PIN page
+/// after the user approves — this is the only sign-in path, token-only, no
+/// deep link / custom URI scheme involved.
 #[tauri::command]
 pub async fn anilist_connect_token(
     state: State<'_, AppState>,
