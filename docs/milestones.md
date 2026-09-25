@@ -441,7 +441,7 @@ forces the cross-platform build story to exist.
 
 ---
 
-## M9 — Your schedule (airing calendar) *(built 2026-09-25, acceptance owed)*
+## ✅ M9 — Your schedule (airing calendar) *(built 2026-09-25, accepted 2026-09-25)*
 
 A month-at-a-glance calendar of every airing show in your library: which
 episode drops on which day, and at what time, in your local timezone.
@@ -502,10 +502,8 @@ episode drops on which day, and at what time, in your local timezone.
   marking) and `bucketByLocalDay` (same-day grouping, local-midnight
   splitting, DST-transition stability) — 9 Vitest cases. Backend:
   `schedule_is_stale` TTL-boundary + `schedule_window` padding, 4 Rust tests.
-- ⏳ **Acceptance owed** — needs a real live check: the calendar showing
-  correct airing entries for actual Watching/Planning/Paused shows, month
-  navigation, and confirming a revisit inside the 12h TTL makes zero extra
-  AniList requests.
+- ✅ **Acceptance passed** (2026-09-25) — verified live against the real
+  account and list.
 
 ---
 
