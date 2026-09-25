@@ -14,6 +14,7 @@ import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as LibraryLocalRouteImport } from './routes/library-local'
 import { Route as PlaybackPromptRouteImport } from './routes/playback-prompt'
 import { Route as RssRouteImport } from './routes/rss'
+import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as SeasonsRouteImport } from './routes/seasons'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
@@ -44,6 +45,11 @@ const RssRoute = RssRouteImport.update({
   path: '/rss',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SeasonsRoute = SeasonsRouteImport.update({
   id: '/seasons',
   path: '/seasons',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/library-local': typeof LibraryLocalRoute
   '/playback-prompt': typeof PlaybackPromptRoute
   '/rss': typeof RssRoute
+  '/schedule': typeof ScheduleRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/library-local': typeof LibraryLocalRoute
   '/playback-prompt': typeof PlaybackPromptRoute
   '/rss': typeof RssRoute
+  '/schedule': typeof ScheduleRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/library-local': typeof LibraryLocalRoute
   '/playback-prompt': typeof PlaybackPromptRoute
   '/rss': typeof RssRoute
+  '/schedule': typeof ScheduleRoute
   '/seasons': typeof SeasonsRoute
   '/settings': typeof SettingsRoute
   '/stats': typeof StatsRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/library-local'
     | '/playback-prompt'
     | '/rss'
+    | '/schedule'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/library-local'
     | '/playback-prompt'
     | '/rss'
+    | '/schedule'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/library-local'
     | '/playback-prompt'
     | '/rss'
+    | '/schedule'
     | '/seasons'
     | '/settings'
     | '/stats'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   LibraryLocalRoute: typeof LibraryLocalRoute
   PlaybackPromptRoute: typeof PlaybackPromptRoute
   RssRoute: typeof RssRoute
+  ScheduleRoute: typeof ScheduleRoute
   SeasonsRoute: typeof SeasonsRoute
   SettingsRoute: typeof SettingsRoute
   StatsRoute: typeof StatsRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RssRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/seasons': {
       id: '/seasons'
       path: '/seasons'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryLocalRoute: LibraryLocalRoute,
   PlaybackPromptRoute: PlaybackPromptRoute,
   RssRoute: RssRoute,
+  ScheduleRoute: ScheduleRoute,
   SeasonsRoute: SeasonsRoute,
   SettingsRoute: SettingsRoute,
   StatsRoute: StatsRoute,

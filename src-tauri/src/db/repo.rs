@@ -1303,6 +1303,94 @@ pub async fn replace_season(
 }
 
 // --------------------------------------------------------------------------- //
+// Airing calendar (M9)
+// --------------------------------------------------------------------------- //
+
+/// When (if ever) a `(year, month)` window was last fetched.
+pub async fn schedule_state_fetched_at(
+    db: &Db,
+    year: i32,
+    month: u32,
+) -> AppResult<Option<String>> {
+    let fetched_at: Option<String> = sqlx::query_scalar(
+        "SELECT fetched_at FROM schedule_state WHERE year = ?1 AND month = ?2",
+    )
+    .bind(year)
+    .bind(month)
+    .fetch_optional(db)
+    .await?;
+    Ok(fetched_at)
+}
+
+/// Schedule entries airing in `[start, end)`. No join — the media itself
+/// isn't duplicated here, the frontend already has it via the list cache.
+pub async fn schedule_range(
+    db: &Db,
+    start_rfc3339: &str,
+    end_rfc3339: &str,
+) -> AppResult<Vec<(i64, i32, String)>> {
+    let rows = sqlx::query_as::<_, (i64, i32, String)>(
+        "SELECT media_id, episode, airing_at FROM airing_schedule
+         WHERE airing_at >= ?1 AND airing_at < ?2
+         ORDER BY airing_at",
+    )
+    .bind(start_rfc3339)
+    .bind(end_rfc3339)
+    .fetch_all(db)
+    .await?;
+    Ok(rows)
+}
+
+/// Which media ids should be checked for a schedule refresh — anything
+/// actively tracked (Watching / Planning / Paused), regardless of which
+/// month is being viewed.
+pub async fn tracked_media_ids(db: &Db, service: ServiceKind) -> AppResult<Vec<i64>> {
+    let ids: Vec<i64> = sqlx::query_scalar(
+        "SELECT media_id FROM list_entry
+         WHERE deleted = 0 AND service = ?1 AND status IN ('CURRENT','PLANNING','PAUSED')",
+    )
+    .bind(service.as_str())
+    .fetch_all(db)
+    .await?;
+    Ok(ids)
+}
+
+/// Upsert a fresh batch of schedule entries and stamp the `(year, month)`
+/// window as fetched. Never deletes — a row for a show that's since left the
+/// tracked-status set is a harmless orphan (see migration 0008's comment).
+pub async fn upsert_schedule(
+    db: &Db,
+    year: i32,
+    month: u32,
+    entries: &[(i64, i32, String)],
+) -> AppResult<()> {
+    let mut tx = db.begin().await?;
+    for (media_id, episode, airing_at) in entries {
+        sqlx::query(
+            "INSERT INTO airing_schedule (service, media_id, episode, airing_at)
+             VALUES ('anilist', ?1, ?2, ?3)
+             ON CONFLICT(service, media_id, episode) DO UPDATE SET airing_at = excluded.airing_at",
+        )
+        .bind(media_id)
+        .bind(episode)
+        .bind(airing_at)
+        .execute(&mut *tx)
+        .await?;
+    }
+    sqlx::query(
+        "INSERT INTO schedule_state (year, month, fetched_at) VALUES (?1,?2,?3)
+         ON CONFLICT(year, month) DO UPDATE SET fetched_at = excluded.fetched_at",
+    )
+    .bind(year)
+    .bind(month)
+    .bind(now())
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+// --------------------------------------------------------------------------- //
 // RSS auto-download (M5) — feeds
 // --------------------------------------------------------------------------- //
 

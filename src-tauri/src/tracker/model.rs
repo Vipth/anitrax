@@ -279,6 +279,25 @@ pub struct SeasonPage {
     pub has_next_page: bool,
 }
 
+/// A single episode's air time (M9). Deliberately thin — no media data;
+/// every media id queried is already in the user's tracked list, so the
+/// title/poster/progress always come from the existing list cache instead.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleEntry {
+    pub media_id: i64,
+    pub episode: i32,
+    pub airing_at: String, // RFC3339 UTC
+}
+
+/// One page of an airing-schedule listing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchedulePage {
+    pub entries: Vec<ScheduleEntry>,
+    pub has_next_page: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Viewer {

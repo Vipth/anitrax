@@ -127,6 +127,8 @@ pub const PLAYER_INTEGRATION_PATH_KEY: &str = "player_integration_path";
 pub const AUTO_UPDATE_CHECK_KEY: &str = "auto_update_check";
 pub const LAST_UPDATE_CHECK_KEY: &str = "last_update_check";
 pub const SKIPPED_UPDATE_VERSION_KEY: &str = "skipped_update_version";
+/// M9 — airing calendar. Defaults to Monday (ISO 8601); no locale detection.
+pub const WEEK_STARTS_MONDAY_KEY: &str = "week_starts_monday";
 
 /// Full-sync every connected service on launch. Skipped entirely when the user
 /// turns off "Sync on startup".
@@ -399,6 +401,116 @@ async fn refetch_season(
     }
     repo::replace_season(&state.db, year, season, &all).await?;
     Ok(all)
+}
+
+/// M9 — how long a fetched `(year, month)` schedule window stays fresh.
+const SCHEDULE_TTL_CURRENT: Duration = Duration::from_secs(12 * 3600);
+const SCHEDULE_TTL_PAST: Duration = Duration::from_secs(30 * 24 * 3600);
+/// Generous cap — a padded month across a normal-sized tracked list.
+const SCHEDULE_MAX_PAGES: i32 = 5;
+/// Padding on either side of the calendar month, in days — enough to cover
+/// any week-start-day display grid regardless of the user's Monday/Sunday
+/// setting, so the cache key (`year`, `month`) stays valid even if that
+/// setting changes later.
+const SCHEDULE_PAD_DAYS: i64 = 7;
+
+fn schedule_is_stale(year: i32, month: u32, fetched_at: &str) -> bool {
+    use chrono::Datelike;
+    let now = chrono::Utc::now();
+    let is_current_or_future = year > now.year() || (year == now.year() && month >= now.month());
+    let ttl = if is_current_or_future {
+        SCHEDULE_TTL_CURRENT
+    } else {
+        SCHEDULE_TTL_PAST
+    };
+    chrono::DateTime::parse_from_rfc3339(fetched_at)
+        .ok()
+        .and_then(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).to_std().ok())
+        .map(|age| age >= ttl)
+        .unwrap_or(true)
+}
+
+/// The padded `[start, end)` window (as RFC3339 UTC bounds and unix seconds)
+/// queried/cached for a given calendar month.
+fn schedule_window(year: i32, month: u32) -> (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>) {
+    use chrono::TimeZone;
+    let month_start = chrono::Utc
+        .with_ymd_and_hms(year, month, 1, 0, 0, 0)
+        .single()
+        .unwrap_or_else(chrono::Utc::now);
+    let next_month_start = if month == 12 {
+        chrono::Utc.with_ymd_and_hms(year + 1, 1, 1, 0, 0, 0)
+    } else {
+        chrono::Utc.with_ymd_and_hms(year, month + 1, 1, 0, 0, 0)
+    }
+    .single()
+    .unwrap_or(month_start);
+    (
+        month_start - chrono::Duration::days(SCHEDULE_PAD_DAYS),
+        next_month_start + chrono::Duration::days(SCHEDULE_PAD_DAYS),
+    )
+}
+
+/// Which episode of each tracked (Watching/Planning/Paused) show airs when,
+/// within the padded window around `(year, month)`. Cache-first with a TTL;
+/// a stale copy beats an error when AniList is unreachable.
+pub async fn schedule(state: &AppState, year: i32, month: u32) -> AppResult<Vec<ScheduleEntry>> {
+    let (start, end) = schedule_window(year, month);
+    let fetched_at = repo::schedule_state_fetched_at(&state.db, year, month).await?;
+    let fresh = fetched_at
+        .as_deref()
+        .map(|f| !schedule_is_stale(year, month, f))
+        .unwrap_or(false);
+
+    if !fresh {
+        if let Err(e) = refetch_schedule(state, year, month, start, end).await {
+            tracing::warn!(?e, "schedule refetch error, serving cache");
+        }
+    }
+    let rows = repo::schedule_range(&state.db, &start.to_rfc3339(), &end.to_rfc3339()).await?;
+    Ok(rows
+        .into_iter()
+        .map(|(media_id, episode, airing_at)| ScheduleEntry {
+            media_id,
+            episode,
+            airing_at,
+        })
+        .collect())
+}
+
+async fn refetch_schedule(
+    state: &AppState,
+    year: i32,
+    month: u32,
+    start: chrono::DateTime<chrono::Utc>,
+    end: chrono::DateTime<chrono::Utc>,
+) -> AppResult<()> {
+    let media_ids = repo::tracked_media_ids(&state.db, ServiceKind::AniList).await?;
+    if media_ids.is_empty() {
+        return repo::upsert_schedule(&state.db, year, month, &[]).await;
+    }
+
+    let token = auth::load_token(ServiceKind::AniList)?;
+    let from = start.timestamp();
+    let to = end.timestamp();
+    let mut all: Vec<(i64, i32, String)> = Vec::new();
+    for page in 1..=SCHEDULE_MAX_PAGES {
+        let result = state
+            .anilist
+            .airing_schedule(token.as_deref(), &media_ids, from, to, page)
+            .await?;
+        let last = !result.has_next_page || result.entries.is_empty();
+        all.extend(
+            result
+                .entries
+                .into_iter()
+                .map(|e| (e.media_id, e.episode, e.airing_at)),
+        );
+        if last {
+            break;
+        }
+    }
+    repo::upsert_schedule(&state.db, year, month, &all).await
 }
 
 // --------------------------------------------------------------------------- //
@@ -816,4 +928,56 @@ async fn run_matcher(state: &AppState) -> AppResult<MatchCounts> {
 fn rule_key(title: Option<&str>) -> Option<String> {
     let k = matcher::normalize(title?);
     (!k.is_empty()).then_some(k)
+}
+
+#[cfg(test)]
+mod schedule_tests {
+    use super::*;
+    use chrono::{Datelike, TimeZone};
+
+    #[test]
+    fn current_month_uses_the_short_ttl() {
+        let now = chrono::Utc::now();
+        let almost_fresh = now - chrono::Duration::hours(11);
+        assert!(!schedule_is_stale(
+            now.year(),
+            now.month(),
+            &almost_fresh.to_rfc3339()
+        ));
+        let just_over = now - chrono::Duration::hours(13);
+        assert!(schedule_is_stale(
+            now.year(),
+            now.month(),
+            &just_over.to_rfc3339()
+        ));
+    }
+
+    #[test]
+    fn past_month_uses_the_long_ttl() {
+        let now = chrono::Utc::now();
+        let (py, pm) = if now.month() == 1 {
+            (now.year() - 1, 12)
+        } else {
+            (now.year(), now.month() - 1)
+        };
+        let thirteen_hours_ago = (now - chrono::Duration::hours(13)).to_rfc3339();
+        // Would be stale for the current month, but a past month's TTL is 30d.
+        assert!(!schedule_is_stale(py, pm, &thirteen_hours_ago));
+    }
+
+    #[test]
+    fn missing_or_unparseable_timestamps_count_as_stale() {
+        let now = chrono::Utc::now();
+        assert!(schedule_is_stale(now.year(), now.month(), "not a date"));
+    }
+
+    #[test]
+    fn window_pads_a_month_on_both_sides() {
+        let (start, end) = schedule_window(2026, 2);
+        assert!(start < chrono::Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).unwrap());
+        assert!(end > chrono::Utc.with_ymd_and_hms(2026, 3, 1, 0, 0, 0).unwrap());
+        // December -> January year rollover.
+        let (_, dec_end) = schedule_window(2026, 12);
+        assert!(dec_end > chrono::Utc.with_ymd_and_hms(2027, 1, 1, 0, 0, 0).unwrap());
+    }
 }

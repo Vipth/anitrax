@@ -148,6 +148,30 @@ query ($year: Int!, $season: MediaSeason!, $page: Int!, $perPage: Int!) {{
     )
 }
 
+/// One page of airing schedule entries for a set of media, time-ordered.
+/// Deliberately thin — just enough to place an episode on a day; the media
+/// itself (title/poster/progress) always comes from the already-cached
+/// list, since every media id passed in is already tracked.
+pub fn airing_schedules_page() -> &'static str {
+    r#"
+query ($mediaIds: [Int], $from: Int, $to: Int, $page: Int!, $perPage: Int!) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage }
+    airingSchedules(
+      mediaId_in: $mediaIds
+      airingAt_greater: $from
+      airingAt_lesser: $to
+      sort: TIME
+    ) {
+      mediaId
+      episode
+      airingAt
+    }
+  }
+}
+"#
+}
+
 /// Build one aliased query that fetches many media objects in a single request.
 pub fn batch_media(ids: &[i64]) -> String {
     let selections: String = ids

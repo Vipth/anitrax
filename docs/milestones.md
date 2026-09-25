@@ -441,47 +441,71 @@ forces the cross-platform build story to exist.
 
 ---
 
-## M9 — Your schedule (airing calendar)
+## M9 — Your schedule (airing calendar) *(built 2026-09-25, acceptance owed)*
 
 A month-at-a-glance calendar of every airing show in your library: which
 episode drops on which day, and at what time, in your local timezone.
 
-- **`/schedule` route** — monthly calendar grid (prev / next month, "Today"
-  jump, today's cell highlighted, leading/trailing days from adjacent months
-  dimmed). Each day cell lists that day's releases sorted by air time:
-  small poster, show title, **episode number + episode title**, local time
-  (`Intl.DateTimeFormat`, honours 12h/24h locale). Cells that overflow show
-  "+N more", which opens a day popover with the full list. Clicking an entry
-  opens media detail.
-- **Which shows** — library entries whose media is `RELEASING` or
-  `NOT_YET_RELEASED`. Status filter chips: Watching (default on), Planning,
-  Paused. Shows not in the library never appear.
-- **Data: `airingSchedules`, not `nextAiringEpisode`** — today the cache only
-  holds the single next episode per show, which can't fill a month. New paged
-  query: `Page { airingSchedules(mediaId_in: [...], airingAt_greater,
-  airingAt_lesser) { mediaId episode airingAt } }` for the visible grid range
-  (month + padding weeks). Goes through the `AniListGateway` like everything
-  else; ~30 weekly shows is ~130 rows ≈ 3 pages of 50.
-- **Cache** — migration `0008_airing_schedule` (`airing_schedule` keyed on
-  service + media id + episode, `schedule_state` per month range). TTL 12h for
-  the current/future months, 30d for past months; a list sync that adds or
-  drops an airing show marks the affected months stale. Offline = render from
-  the cache, same as the library.
-- **Episode titles** — AniList's schedule has no per-episode name. Pull
-  `streamingEpisodes { title }` in the same request where available (mostly
-  licensed shows, and usually only once an episode is out); fall back to
-  "Episode N". Don't scrape a second source for this.
-- **Status tints** — next unwatched episode (`progress + 1`) highlighted;
-  episodes you're already behind on marked; owned-on-disk badge from M3 on past
-  days; a subtle "premiere" / "finale" tag when `episode == 1` /
-  `episode == episodes`.
-- **Settings** — week starts on Monday / Sunday (default from locale).
-- **Sidebar** — Schedule entry after Seasons (`CalendarDays` icon); nav becomes
-  Library / Discover / Seasons / Schedule / Local files / RSS / Stats /
-  Settings, hotkeys 1–8.
-- **Tests** — month grid generation (leading/trailing days, week start, 6-row
-  months); bucketing `airingAt` into local days across midnight + DST
-  boundaries; paged-response merge + dedupe; title fallback.
+- ✅ **`/schedule` route** — monthly calendar grid (prev / next month, "Today"
+  jump, today's cell ringed, leading/trailing days from adjacent months
+  dimmed). Each day cell lists that day's releases sorted by air time: small
+  poster, show title (wraps up to 2 lines rather than truncating — titles
+  were hard to read truncated to one line, fixed after live feedback),
+  episode label + local time (`Intl.DateTimeFormat`, honours 12h/24h locale).
+  Cells cap at 3 visible entries with a "+N more" that opens a day `Dialog`
+  listing the rest. Clicking an entry opens media detail. Page dropped its
+  `max-w` cap so the grid uses the full available width.
+- ✅ **Which shows** — cross-referenced client-side against the already-loaded
+  `useLibrary()` cache (zero extra requests): status filter chips — Watching
+  (default on), Planning, Paused — multi-select, toggling never refetches.
+  Shows not in the library never appear.
+- ✅ **Data: `airingSchedules`, not `nextAiringEpisode`** — new paged query
+  `Page { airingSchedules(mediaId_in, airingAt_greater, airingAt_lesser, sort:
+  TIME) { mediaId episode airingAt } }`, verified directly against AniList's
+  live GraphQL schema (introspection) while planning. **Deliberately thinner
+  than originally planned**: no `media` sub-selection at all — every media id
+  queried is already in the tracked list, so title/poster/episode-count
+  already exist via `useLibrary()`, and duplicating them here would've meant
+  a second cache to keep in sync for zero benefit. Goes through the
+  `AniListGateway` like everything else.
+- ✅ **Cache** — migration `0008_airing_schedule`: `airing_schedule` is a flat
+  `(service, media_id, episode) -> airing_at` pointer pool, upserted
+  opportunistically and **never deleted** (unlike `season_media`, which needs
+  delete+reinsert for its per-partition sort order — schedule rows have no
+  ordering to preserve, and a stale row for a show that's left the tracked
+  set is harmless, since the frontend just won't find that id in
+  `useLibrary()` anymore). `schedule_state` tracks which `(year, month)`
+  windows have been fetched, TTL 12h current/future, 30d past — same split as
+  seasons. The query window pads each month by 7 days on both sides so the
+  cache key stays valid regardless of the Monday/Sunday setting.
+- **Episode titles** — scoped out of v1 (confirmed with the user before
+  building): `streamingEpisodes` returns every streaming episode for a show
+  with no reliable key to line a title up with the right episode number, on
+  top of extra query complexity. Cells always show "Episode N" for now.
+- ✅ **Status tints** — next unwatched episode (`progress + 1`) gets a
+  primary tint; a distinct **finale tint (warning/amber)** for
+  `episode == media.episodes`, added after a follow-up request to make
+  finales visually distinct from the next-episode highlight rather than just
+  a text label (next-episode tint wins if an episode is both); "Premiere"
+  label at episode 1; owned-on-disk badge (M3) via `useOwnedMedia()`.
+- ✅ **Settings** — new "Schedule" section, "Week starts on" Monday/Sunday
+  toggle. Default is a fixed Monday (ISO 8601), not locale-detected as
+  originally planned — seeding a locale-aware default would need the
+  frontend to read `Intl.Locale(...).weekInfo` and push it to the backend on
+  first run, more moving parts than a one-time cosmetic default the user can
+  flip in two clicks.
+- ✅ **Sidebar** — Schedule entry after Seasons (`CalendarDays` icon); nav is
+  now Library / Discover / Seasons / Schedule / Local files / RSS / Stats /
+  Settings, hotkeys 1–8 (`KeyboardHelp` updated to match).
+- ✅ **Tests** — `src/lib/calendar.ts` (new, pure): `monthGrid` (full weeks,
+  leading/trailing days, Monday vs Sunday start, 5- vs 6-row months, today
+  marking) and `bucketByLocalDay` (same-day grouping, local-midnight
+  splitting, DST-transition stability) — 9 Vitest cases. Backend:
+  `schedule_is_stale` TTL-boundary + `schedule_window` padding, 4 Rust tests.
+- ⏳ **Acceptance owed** — needs a real live check: the calendar showing
+  correct airing entries for actual Watching/Planning/Paused shows, month
+  navigation, and confirming a revisit inside the 12h TTL makes zero extra
+  AniList requests.
 
 ---
 

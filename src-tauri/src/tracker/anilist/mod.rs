@@ -218,4 +218,42 @@ impl TrackerService for AniList {
             has_next_page,
         })
     }
+
+    async fn airing_schedule(
+        &self,
+        token: Option<&str>,
+        media_ids: &[i64],
+        from: i64,
+        to: i64,
+        page: i32,
+    ) -> AppResult<SchedulePage> {
+        let data = self
+            .call(
+                queries::airing_schedules_page(),
+                json!({
+                    "mediaIds": media_ids,
+                    "from": from,
+                    "to": to,
+                    "page": page,
+                    "perPage": 50,
+                }),
+                token,
+            )
+            .await?;
+        let page_obj = data.get("Page");
+        let has_next_page = page_obj
+            .and_then(|p| p.get("pageInfo"))
+            .and_then(|i| i.get("hasNextPage"))
+            .and_then(|b| b.as_bool())
+            .unwrap_or(false);
+        let entries = page_obj
+            .and_then(|p| p.get("airingSchedules"))
+            .and_then(|a| a.as_array())
+            .map(|a| a.iter().filter_map(map::schedule_entry).collect())
+            .unwrap_or_default();
+        Ok(SchedulePage {
+            entries,
+            has_next_page,
+        })
+    }
 }

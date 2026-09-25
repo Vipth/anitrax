@@ -53,4 +53,5 @@ export const qk = {
   rssPollEnabled: ["rssPollEnabled"] as const,
   nowWatching: ["nowWatching"] as const,
   knownPlayers: ["knownPlayers"] as const,
+  schedule: (year: number, month: number) => ["schedule", year, month] as const,
 };

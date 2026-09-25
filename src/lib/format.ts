@@ -77,6 +77,16 @@ export function relativeTime(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString();
 }
 
+const AIR_TIME = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** Local air time for a calendar cell — honours the viewer's 12h/24h locale. */
+export function formatAirTime(iso: string): string {
+  return AIR_TIME.format(new Date(iso));
+}
+
 export function countdown(iso: string): string {
   const secs = (new Date(iso).getTime() - Date.now()) / 1000;
   if (secs <= 0) return "airing now";

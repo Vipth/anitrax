@@ -37,6 +37,8 @@ pub struct AppSettings {
     pub auto_update_check: bool,
     pub last_update_check: Option<String>,
     pub skipped_update_version: Option<String>,
+    /// M9 — airing calendar.
+    pub week_starts_monday: bool,
 }
 
 #[tauri::command]
@@ -85,6 +87,8 @@ pub async fn get_settings(
         skipped_update_version: repo::get_setting(&state.db, sync::SKIPPED_UPDATE_VERSION_KEY)
             .await?
             .and_then(|v| v.as_str().map(str::to_owned)),
+        week_starts_monday: repo::get_bool_setting(&state.db, sync::WEEK_STARTS_MONDAY_KEY, true)
+            .await?,
     })
 }
 
@@ -373,6 +377,21 @@ pub async fn get_season(
     season: String,
 ) -> AppResult<Vec<Media>> {
     sync::season(&state, year, &season).await
+}
+
+/// M9 — airing calendar.
+#[tauri::command]
+pub async fn get_schedule(
+    state: State<'_, AppState>,
+    year: i32,
+    month: u32,
+) -> AppResult<Vec<ScheduleEntry>> {
+    sync::schedule(&state, year, month).await
+}
+
+#[tauri::command]
+pub async fn set_week_starts_monday(state: State<'_, AppState>, enabled: bool) -> AppResult<()> {
+    repo::set_bool_setting(&state.db, sync::WEEK_STARTS_MONDAY_KEY, enabled).await
 }
 
 #[tauri::command]

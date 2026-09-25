@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   BarChart3,
+  CalendarDays,
   CalendarRange,
   Compass,
   HardDrive,
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/", label: "Library", icon: Library, exact: true },
   { to: "/discover", label: "Discover", icon: Compass, exact: false },
   { to: "/seasons", label: "Seasons", icon: CalendarRange, exact: false },
+  { to: "/schedule", label: "Schedule", icon: CalendarDays, exact: false },
   { to: "/library-local", label: "Local files", icon: HardDrive, exact: false },
   { to: "/rss", label: "RSS", icon: Rss, exact: false },
   { to: "/stats", label: "Stats", icon: BarChart3, exact: false },

@@ -94,6 +94,15 @@ export interface EntryPatch {
   completedAt?: string | null;
 }
 
+/** M9 — a single episode's air time. Deliberately thin: no title/poster/
+ * progress — every media id it references is already tracked, so the rest
+ * comes from the existing `useLibrary()` cache, not a second round-trip. */
+export interface ScheduleEntry {
+  mediaId: number;
+  episode: number;
+  airingAt: string;
+}
+
 export interface Account {
   service: string;
   userId: string;
@@ -127,6 +136,7 @@ export interface AppSettings {
   autoUpdateCheck: boolean;
   lastUpdateCheck: string | null;
   skippedUpdateVersion: string | null;
+  weekStartsMonday: boolean;
 }
 
 export interface KnownPlayer {

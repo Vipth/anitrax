@@ -117,6 +117,12 @@ function SettingsPage() {
         </SettingRow>
       </Section>
 
+      <Section title="Schedule">
+        <SettingRow label="Week starts on">
+          <WeekStartsToggle />
+        </SettingRow>
+      </Section>
+
       <Section title="API usage">
         <RequestBudgetMeter />
         <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
@@ -906,6 +912,38 @@ function StartMinimizedToggle() {
       checked={enabled}
       onCheckedChange={(v) => mut.mutate(v)}
       aria-label="Start minimised to tray"
+    />
+  );
+}
+
+function WeekStartsToggle() {
+  const { data: settings } = useSettings();
+  const qc = useQueryClient();
+  const monday = settings?.weekStartsMonday ?? true;
+
+  const mut = useMutation({
+    mutationFn: (v: boolean) => api.setWeekStartsMonday(v),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.settings });
+      const prev = qc.getQueryData<AppSettings>(qk.settings);
+      if (prev) qc.setQueryData<AppSettings>(qk.settings, { ...prev, weekStartsMonday: v });
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.settings, ctx.prev);
+      toast.error("Couldn't save", errorMessage(e));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.settings }),
+  });
+
+  return (
+    <Segmented
+      value={monday ? "monday" : "sunday"}
+      onChange={(v) => mut.mutate(v === "monday")}
+      options={[
+        { value: "monday", label: "Monday" },
+        { value: "sunday", label: "Sunday" },
+      ]}
     />
   );
 }

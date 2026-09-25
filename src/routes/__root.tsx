@@ -49,6 +49,7 @@ function RootLayout() {
     "/",
     "/discover",
     "/seasons",
+    "/schedule",
     "/library-local",
     "/rss",
     "/stats",
@@ -94,19 +95,24 @@ function RootLayout() {
       "4": (e) => {
         if (helpOpen) return;
         e.preventDefault();
-        navigate({ to: "/library-local" });
+        navigate({ to: "/schedule" });
       },
       "5": (e) => {
         if (helpOpen) return;
         e.preventDefault();
-        navigate({ to: "/rss" });
+        navigate({ to: "/library-local" });
       },
       "6": (e) => {
         if (helpOpen) return;
         e.preventDefault();
-        navigate({ to: "/stats" });
+        navigate({ to: "/rss" });
       },
       "7": (e) => {
+        if (helpOpen) return;
+        e.preventDefault();
+        navigate({ to: "/stats" });
+      },
+      "8": (e) => {
         if (helpOpen) return;
         e.preventDefault();
         navigate({ to: "/settings" });

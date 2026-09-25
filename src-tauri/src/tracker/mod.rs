@@ -43,4 +43,16 @@ pub trait TrackerService: Send + Sync {
         season: MediaSeason,
         page: i32,
     ) -> AppResult<SeasonPage>;
+
+    /// One page (time-ordered) of airing schedule entries for `media_ids`,
+    /// airing strictly between `from` and `to` (unix timestamps). `token`
+    /// optional — public data, same reasoning as `search`.
+    async fn airing_schedule(
+        &self,
+        token: Option<&str>,
+        media_ids: &[i64],
+        from: i64,
+        to: i64,
+        page: i32,
+    ) -> AppResult<SchedulePage>;
 }

@@ -194,6 +194,8 @@ pub fn run() {
             commands::set_auto_update_check,
             commands::set_skipped_update_version,
             commands::mark_update_checked,
+            commands::get_schedule,
+            commands::set_week_starts_monday,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

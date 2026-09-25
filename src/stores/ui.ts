@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MediaFormat, MediaSeasonName } from "@/lib/types";
+import type { ListStatus, MediaFormat, MediaSeasonName } from "@/lib/types";
 
 interface UiState {
   helpOpen: boolean;
@@ -38,6 +38,15 @@ interface UiState {
   seasonGenre: string;
   setSeasonGenre: (v: string) => void;
 
+  /** Schedule (calendar) position — same "survive back-nav" idea as season
+   * above. `null` month = follow the current month. */
+  scheduleMonth: { year: number; month: number } | null;
+  setScheduleMonth: (v: { year: number; month: number }) => void;
+  clearScheduleMonth: () => void;
+  /** Which list statuses show on the calendar — multi-select, so it's a Set. */
+  scheduleStatusFilter: Set<ListStatus>;
+  toggleScheduleStatus: (status: ListStatus) => void;
+
   /** One-shot handoff: a library entry's "Make RSS rule" context-menu action
    * sets this, then navigates to /rss, which opens New Rule pre-filled with
    * that show and clears it right after — not persisted navigation state
@@ -71,6 +80,18 @@ export const useUi = create<UiState>((set) => ({
   setSeasonFormat: (seasonFormat) => set({ seasonFormat }),
   seasonGenre: "ALL",
   setSeasonGenre: (seasonGenre) => set({ seasonGenre }),
+
+  scheduleMonth: null,
+  setScheduleMonth: (scheduleMonth) => set({ scheduleMonth }),
+  clearScheduleMonth: () => set({ scheduleMonth: null }),
+  scheduleStatusFilter: new Set(["CURRENT"]),
+  toggleScheduleStatus: (status) =>
+    set((s) => {
+      const next = new Set(s.scheduleStatusFilter);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return { scheduleStatusFilter: next };
+    }),
 
   rssRulePrefillMediaId: null,
   setRssRulePrefillMediaId: (rssRulePrefillMediaId) => set({ rssRulePrefillMediaId }),

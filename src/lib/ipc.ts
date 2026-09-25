@@ -21,6 +21,7 @@ import type {
   RssRule,
   RssRuleInput,
   ScanReport,
+  ScheduleEntry,
   ServiceKind,
   StatsData,
   SyncReport,
@@ -195,4 +196,11 @@ export const api = {
     invoke<void>("set_skipped_update_version", { version }),
 
   markUpdateChecked: () => invoke<void>("mark_update_checked"),
+
+  // Airing calendar (M9)
+  getSchedule: (year: number, month: number) =>
+    invoke<ScheduleEntry[]>("get_schedule", { year, month }),
+
+  setWeekStartsMonday: (enabled: boolean) =>
+    invoke<void>("set_week_starts_monday", { enabled }),
 };

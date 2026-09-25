@@ -185,6 +185,15 @@ export function useSeason(year: number, season: string, enabled = true) {
   });
 }
 
+/** M9 — airing calendar. `month` is 1-12. */
+export function useSchedule(year: number, month: number) {
+  return useQuery({
+    queryKey: qk.schedule(year, month),
+    queryFn: () => api.getSchedule(year, month),
+    staleTime: 30 * 60_000,
+  });
+}
+
 export function useScanLibrary() {
   const qc = useQueryClient();
   return useMutation({

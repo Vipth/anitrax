@@ -111,6 +111,19 @@ pub fn media(v: &Value) -> Option<Media> {
     })
 }
 
+/// M9 — a raw `AiringSchedule` node (`{ mediaId episode airingAt }`).
+pub fn schedule_entry(v: &Value) -> Option<ScheduleEntry> {
+    let media_id = i(v, "mediaId")?;
+    let episode = i(v, "episode")? as i32;
+    let airing_at = i(v, "airingAt")?;
+    let airing_at = Utc.timestamp_opt(airing_at, 0).single()?.to_rfc3339();
+    Some(ScheduleEntry {
+        media_id,
+        episode,
+        airing_at,
+    })
+}
+
 pub fn list_status(raw: &str) -> ListStatus {
     raw.parse().unwrap_or(ListStatus::Planning)
 }
