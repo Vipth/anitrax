@@ -27,9 +27,9 @@ Everything's cached locally, so the app works offline and just catches up whenev
 
 This is the part I actually care about, so it gets its own section instead of a bullet.
 
-Every single request to AniList, sync, search, an episode bump, anything, funnels through one paced queue (`src-tauri/src/tracker/anilist/gateway.rs`) that caps itself at 45 requests a minute. That's half of what AniList actually allows. Not because I don't trust their limit, but because I'd rather leave headroom than find out the hard way that their hidden burst limiter exists too.
+Every single request to AniList, sync, search, an episode bump, anything, funnels through one paced queue (`src-tauri/src/tracker/anilist/gateway.rs`) that caps itself at 45 requests a minute. That's half of what AniList actually allows. AniList runs this API for free, for the whole community, and I'd rather AniTrax be a considerate guest on their servers than lean on every request the limit technically permits.
 
-On top of that, the UI never talks to the network directly. It reads from a local SQLite cache, and that cache is the actual source of truth for what's on screen. The network gets touched on an explicit sync, a stale launch, or a slow background timer, never just because you scrolled. Rapid `+1` clicks on an episode collapse into a single debounced write instead of one request per click. And if you're curious how close to the edge you're running, there's a live request budget meter sitting in the sidebar and Settings.
+On top of that, the UI never talks to the network directly. It reads from a local SQLite cache, and that cache is the actual source of truth for what's on screen. The network gets touched on an explicit sync, a stale launch, or a slow background timer, never just because you scrolled. Rapid `+1` clicks on an episode collapse into a single debounced write instead of one request per click. If you're curious how light a footprint that actually leaves, there's a live request budget meter sitting in the sidebar and Settings.
 
 ## Building it from source
 
