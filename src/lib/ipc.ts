@@ -68,8 +68,6 @@ export const api = {
   anilistConnectToken: (token: string) =>
     invoke<Account>("anilist_connect_token", { token }),
 
-  listAccounts: () => invoke<Account[]>("list_accounts"),
-
   disconnect: (service?: ServiceKind) =>
     invoke<void>("disconnect_account", { service }),
 

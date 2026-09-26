@@ -94,7 +94,7 @@ pub fn compute(entries: &[MediaListEntry], now: chrono::DateTime<chrono::Utc>) -
         .filter(|(k, _)| k != "UNKNOWN")
         .map(|(key, count)| Bucket { key, count })
         .collect();
-    by_format.sort_by(|a, b| b.count.cmp(&a.count));
+    by_format.sort_by_key(|b| std::cmp::Reverse(b.count));
 
     let mut top_genres: Vec<Bucket> = genre_counts
         .into_iter()

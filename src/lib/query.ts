@@ -34,7 +34,6 @@ if (import.meta.env.DEV) {
 
 export const qk = {
   settings: ["settings"] as const,
-  accounts: ["accounts"] as const,
   library: (service?: string) => ["library", service ?? "anilist"] as const,
   media: (id: number) => ["media", id] as const,
   search: (q: string) => ["search", q] as const,

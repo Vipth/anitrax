@@ -136,7 +136,6 @@ pub fn run() {
             commands::set_sync_on_startup,
             commands::anilist_login_url,
             commands::anilist_connect_token,
-            commands::list_accounts,
             commands::disconnect_account,
             commands::get_library,
             commands::get_stats,

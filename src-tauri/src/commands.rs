@@ -244,11 +244,6 @@ pub async fn anilist_connect_token(
 }
 
 #[tauri::command]
-pub async fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<Account>> {
-    repo::list_accounts(&state.db).await
-}
-
-#[tauri::command]
 pub async fn disconnect_account(
     state: State<'_, AppState>,
     service: Option<String>,

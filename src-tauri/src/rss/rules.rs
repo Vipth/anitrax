@@ -35,7 +35,7 @@ impl Decision {
 pub fn resolution_height(raw: &str) -> Option<i64> {
     let lower = raw.trim().to_ascii_lowercase();
     let digits = lower
-        .rsplit(|c: char| c == 'x' || c == '×')
+        .rsplit(['x', '×'])
         .next()
         .unwrap_or(&lower)
         .trim_end_matches('p')

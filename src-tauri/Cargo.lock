@@ -116,7 +116,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "url",
  "walkdir",
 ]
 

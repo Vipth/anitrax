@@ -29,6 +29,15 @@ export const FORMAT_LABEL: Record<MediaFormat, string> = {
   UNKNOWN: "—",
 };
 
+/** AniList's own score-format setting (Settings → AniList account). */
+export const SCORE_FORMAT_LABEL: Record<string, string> = {
+  POINT_100: "100-point",
+  POINT_10: "10-point",
+  POINT_10_DECIMAL: "10-point (decimal)",
+  POINT_5: "5-star",
+  POINT_3: "smiley",
+};
+
 export function mediaTitle(m: Media): string {
   return m.title.english || m.title.romaji || m.title.native || "Unknown";
 }

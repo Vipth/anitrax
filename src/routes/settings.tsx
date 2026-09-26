@@ -23,7 +23,7 @@ import {
   useScanLibrary,
   useSettings,
 } from "@/lib/hooks";
-import { relativeTime } from "@/lib/format";
+import { relativeTime, SCORE_FORMAT_LABEL } from "@/lib/format";
 import { toast } from "@/stores/toast";
 import { useUpdateStore } from "@/stores/update";
 import {
@@ -60,7 +60,7 @@ function SettingsPage() {
             <div className="flex-1">
               <p className="text-sm font-medium">{account.userName}</p>
               <p className="text-xs text-muted-foreground">
-                Connected · score format {account.scoreFormat}
+                Connected · {SCORE_FORMAT_LABEL[account.scoreFormat] ?? account.scoreFormat} scoring
               </p>
             </div>
             <Button
