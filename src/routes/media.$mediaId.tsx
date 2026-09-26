@@ -98,7 +98,7 @@ function MediaDetailPage() {
 
   return (
     <div className="pb-10">
-      <div className="relative h-[32vh] min-h-52 max-h-96 w-full overflow-hidden bg-border/40">
+      <div className="relative h-60 w-full overflow-hidden bg-border/40">
         {media.bannerUrl && (
           <img
             src={media.bannerUrl}
