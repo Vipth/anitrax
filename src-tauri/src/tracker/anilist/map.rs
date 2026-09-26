@@ -90,7 +90,7 @@ pub fn media(v: &Value) -> Option<Media> {
         duration: i(v, "duration").map(|x| x as i32),
         season: season(v.get("season").and_then(|x| x.as_str())),
         season_year: i(v, "seasonYear").map(|x| x as i32),
-        cover_url: s(&cover, "large"),
+        cover_url: s(&cover, "extraLarge").or_else(|| s(&cover, "large")),
         cover_color: s(&cover, "color"),
         banner_url: s(v, "bannerImage"),
         average_score: i(v, "averageScore").map(|x| x as i32),

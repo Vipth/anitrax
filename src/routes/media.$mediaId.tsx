@@ -15,6 +15,7 @@ import {
   Plus,
   Star,
   Tv,
+  ZoomIn,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "@/lib/ipc";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { AiringBadge } from "@/components/media/AiringBadge";
 import { Countdown } from "@/components/media/Countdown";
 import { MediaPoster } from "@/components/media/MediaPoster";
+import { ImageLightbox } from "@/components/media/ImageLightbox";
 import { PlayButton } from "@/components/media/PlayButton";
 import { ProgressControl } from "@/components/media/ProgressControl";
 import { EditEntryDialog } from "@/components/media/EditEntryDialog";
@@ -47,6 +49,7 @@ function MediaDetailPage() {
   const { mediaId } = Route.useParams();
   const id = Number(mediaId);
   const [editing, setEditing] = React.useState(false);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const router = useRouter();
   const canGoBack = useCanGoBack();
 
@@ -95,7 +98,7 @@ function MediaDetailPage() {
 
   return (
     <div className="pb-10">
-      <div className="relative h-52 w-full overflow-hidden bg-border/40">
+      <div className="relative h-[32vh] min-h-52 max-h-96 w-full overflow-hidden bg-border/40">
         {media.bannerUrl && (
           <img
             src={media.bannerUrl}
@@ -123,10 +126,23 @@ function MediaDetailPage() {
 
       <div className="mx-auto -mt-24 max-w-[1000px] px-6">
         <div className="flex flex-col gap-6 sm:flex-row">
-          <MediaPoster
-            media={media}
-            className="h-64 w-44 shrink-0 rounded-lg border border-border shadow-xl"
-          />
+          <button
+            type="button"
+            onClick={() => media.coverUrl && setLightboxOpen(true)}
+            disabled={!media.coverUrl}
+            className="group relative h-64 w-44 shrink-0 rounded-lg disabled:cursor-default"
+            aria-label="View full-size cover image"
+          >
+            <MediaPoster
+              media={media}
+              className="size-full rounded-lg border border-border shadow-xl"
+            />
+            {media.coverUrl && (
+              <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                <ZoomIn className="size-6 text-white drop-shadow" />
+              </span>
+            )}
+          </button>
 
           <div className="flex-1 pt-24 sm:pt-28">
             <h1 className="text-2xl font-bold leading-tight">
@@ -250,6 +266,15 @@ function MediaDetailPage() {
 
       {entry && (
         <EditEntryDialog entry={entry} open={editing} onOpenChange={setEditing} />
+      )}
+
+      {media.coverUrl && (
+        <ImageLightbox
+          src={media.coverUrl}
+          alt={mediaTitle(media)}
+          open={lightboxOpen}
+          onOpenChange={setLightboxOpen}
+        />
       )}
     </div>
   );

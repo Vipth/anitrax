@@ -15,7 +15,7 @@ pub const MEDIA_FIELDS: &str = r#"
   popularity
   genres
   synonyms
-  coverImage { large color }
+  coverImage { extraLarge large color }
   bannerImage
   siteUrl
   startDate { year month day }
