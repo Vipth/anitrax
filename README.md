@@ -6,6 +6,10 @@ It's built with Tauri 2 and React 19, so it's a real native app on Windows, macO
 
 Curious how it got here? `docs/milestones.md` has the whole build history, built out over about two weeks.
 
+## Try it
+
+Grab the latest build for Windows, macOS, or Linux from the [releases page](https://github.com/Vipth/anitrax/releases/latest). It'll keep itself up to date after that.
+
 ## What it does
 
 - **Library**: status tabs, grid or list view, sort and filter, inline **+1** on an episode, a full edit dialog for score, notes, and dates, keyboard shortcuts if you'd rather not touch the mouse, right click context menus
@@ -27,7 +31,9 @@ Every single request to AniList, sync, search, an episode bump, anything, funnel
 
 On top of that, the UI never talks to the network directly. It reads from a local SQLite cache, and that cache is the actual source of truth for what's on screen. The network gets touched on an explicit sync, a stale launch, or a slow background timer, never just because you scrolled. Rapid `+1` clicks on an episode collapse into a single debounced write instead of one request per click. And if you're curious how close to the edge you're running, there's a live request budget meter sitting in the sidebar and Settings.
 
-## Running it yourself
+## Building it from source
+
+This is for developing AniTrax itself, not for regular use. If you just want the app, see "Try it" above.
 
 ```bash
 npm install
