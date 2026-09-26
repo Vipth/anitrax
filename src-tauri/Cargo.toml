@@ -1,6 +1,6 @@
 [package]
 name = "anitrax"
-version = "0.3.2"
+version = "1.0.0"
 description = "AniTrax — modern anime tracker with AniList/Kitsu sync"
 authors = ["Brady"]
 edition = "2021"
